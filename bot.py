@@ -4,6 +4,7 @@ import discord
 import datetime
 from discord.ext import commands
 import asyncio
+import pickle
 
 TOKEN = 'MTA3NTE2MzM0MTY1MzI4NjkxMw.GLzEFT.OKMSJ3IjdRBv-K3Mke1KygP4rcZVlr0xONxptE'
 bot = commands.Bot(intents = discord.Intents.all(), command_prefix = '!', help_command = None)
@@ -38,12 +39,13 @@ class rush_list:
 	def __init__(self, names, limit, cycle):
 		self.list = []
 		self.name = names
+		self.emoji = bot.emoji_dict[self.name[0]]
 		self.cycle = cycle
 		self.limit = limit
 		self.full = False
 	def add_rush(self, start):
 		name = self.name[0]
-		self.list.append(rush(name, bot.emoji_dict[name], self.cycle, start))
+		self.list.append(rush(name, self.emoji, self.cycle, start))
 	def full_check(self):
 		if len(self.list) < self.limit:
 			self.full = False
@@ -133,11 +135,45 @@ def update():
 	bot.upcoming_rush.sort(key=lambda x: x.next)
 	bot.upcoming_xp_rush.sort(key=lambda x: x.next)
 	bot.upcoming_resource_rush.sort(key=lambda x: x.next)
+	pickle()
+
+def pickle():
+	#save data into pickle file
+	pickle_list = [bot.all_rush, bot.xp_rush, bot.resource_rush]
+	with open('data.pkl', 'wb') as f:
+		pickle.dump(pickle_list, f)
+
+def unpickle():
+	with open('data.pkl', 'rb') as f:
+		pickle_list = pickle.load(f)
+
+	bot.all_rush = pickle_list[0]
+	bot.xp_rush = pickle_list [1]
+	bot.resource_rush = pickle_list[2]
+
+	bot.red = bot.all_rush[0]
+	bot.green = bot.all_rush[1]
+	bot.blue = bot.all_rush[2]
+	bot.light = bot.all_rush[3]
+	bot.dark = bot.all_rush[4]
+	bot.chromatic = bot.all_rush[5]
+	bot.rainbow = bot.all_rush[6]
+	bot.dragon = bot.all_rush[7]
+	bot.gold = bot.all_rush[8]
+	bot.showdown = bot.all_rush[9]
+	bot.scramble = bot.all_rush[10]
+	update()
 
 @bot.event
 async def on_ready():
 	print(f'{bot.user} has connected to Discord!')
 	initialize()
+	channel = bot.get_channel(1076667650635206818)
+	await channel.send(f'Rush trakcer is ready. Would you like to load previously stored rush data (used for when bot goes down unexpectedly)? (yes/no)')
+	msg = bot.wait_for('message', timeout = 60)
+	if msg in ["Yes", "yes"]:
+		unpickle()
+		channel.send(f'Stored data has been loaded. Please use !status to check the data and !announcement to reset announcements.')
 
 #set rush intervals
 @bot.command(name = 'set')
@@ -251,28 +287,28 @@ async def status(ctx):
 	update()
 	msg = "All times displayed in UTC.\n"
 	if bot.xp_cycle == None:
-		msg += f'**XP Cycle:** No XP cycle has been scheduled.\n'
+		msg += f'**__XP Cycle:__** No XP cycle has been scheduled.\n'
 	else:
-		msg += f'**XP Cycle:** {bot.xp_cycle.days} days {bot.xp_cycle.seconds//3600} hours\n'
+		msg += f'**__XP Cycle:__** {bot.xp_cycle.days} days {bot.xp_cycle.seconds//3600} hours\n'
 	if bot.resource_cycle == None:
-		msg +=f'**Resource Cycle:** No resource cycle has been scheduled.\n'
+		msg +=f'**__Resource Cycle:__** No resource cycle has been scheduled.\n'
 	else:
-		msg += f'**Resource Cycle:** {bot.resource_cycle.days} days {bot.resource_cycle.seconds//3600} hours\n'
+		msg += f'**__Resource Cycle:__** {bot.resource_cycle.days} days {bot.resource_cycle.seconds//3600} hours\n'
 
 	#show xp rush
 	msg += '\n'
 	for rush in bot.list_of_xp_rush:
-		msg += f'**{rush.name[0]} Rush**\n'
+		msg += f'**__{rush.name[0]} Rush__** {rush.emoji}\n'
 		for item in rush.list:
-			msg += f"{item.curr.strftime('%d/%m/%y %H:%M')}\n"
+			msg += f"{item.curr.strftime('%d/%m/%y %A %H:%M')}\n"
 		if len(rush.list) < rush.limit:
 			msg += f'{rush.limit-len(rush.list)} cycle(s) missing.\n'
 	#show resource rush
 	msg += '\n'
 	for rush in bot.list_of_resource_rush:
-		msg += f'**{rush.name[0]} Rush**\n'
+		msg += f'**__{rush.name[0]} Rush__** {rush.emoji}\n'
 		for item in rush.list:
-			msg += f"{item.curr.strftime('%d/%m/%y %H:%M')}\n"
+			msg += f"{item.curr.strftime('%d/%m/%y %A %H:%M')}\n"
 		if len(rush.list) < rush.limit:
 			msg += f'{rush.limit-len(rush.list)} cycle(s) missing.\n'
 	await ctx.send(msg)
@@ -286,7 +322,7 @@ async def nextrush(ctx, rush_name):
 	if rush_name == "all":
 		#show resource rush
 		for rush in bot.list_of_xp_rush:
-			msg += f'**{rush.name[0]} Rush**\n'
+			msg += f'**__{rush.name[0]} Rush__** {rush.emoji}\n'
 			for item in rush.list:
 				msg += f"{item.next.strftime('%d/%m/%y %A %H:%M')}\n"
 			if len(rush.list) < rush.limit:
@@ -294,7 +330,7 @@ async def nextrush(ctx, rush_name):
 		#show resource rush
 		msg += '\n'
 		for rush in bot.list_of_resource_rush:
-			msg += f'**{rush.name[0]} Rush**\n'
+			msg += f'**__{rush.name[0]} Rush__** {rush.emoji}\n'
 			for item in rush.list:
 				msg += f"{item.next.strftime('%d/%m/%y %A %H:%M')}\n"
 			if len(rush.list) < rush.limit:
@@ -303,7 +339,7 @@ async def nextrush(ctx, rush_name):
 		for rush_obj in bot.list_of_rush: 
 			if rush_name in rush_obj.name:
 				break
-		msg += f'**{rush_obj.name[0]} Rush**\n'
+		msg += f'**__{rush_obj.name[0]} Rush__** {rush_obj.emoji}\n'
 		for item in rush_obj.list:
 			msg += f"{item.next.strftime('%d/%m/%y %A %H:%M')}\n"
 		if len(rush_obj.list) < rush_obj.limit:
@@ -318,10 +354,10 @@ async def nextweek(ctx):
 	msg = "All times displayed in UTC.\n"
 	for i in range(1,8):
 		date = datetime.datetime.utcnow().date() + datetime.timedelta(days = i)
-		msg += f"**{date.strftime('%d/%m/%y %A')}**\n"
+		msg += f"**__{date.strftime('%d/%m/%y %A')}__**\n"
 		for rush in bot.upcoming_rush:
 			if rush.next.date() == date:
-				msg += f"{rush.name} Rush {rush.emoji} {rush.next.strftime('%H:%M')}\n"
+				msg += f"{rush.name} Rush {rush.next.strftime('%H:%M')}\n"
 	await ctx.send(msg)
 
 #send rush reminders
@@ -337,7 +373,7 @@ async def check_every_hour(channel_idx, time):
 				await bot.wait_until_ready()
 				channel = bot.get_channel(bot.announcement_channels[channel_idx])
 				await channel.send(f"{rush.name} Rush {rush.emoji} at <t:{round(rush.next.timestamp())}:t> (<t:{round(rush.next.timestamp())}:R>).")
-				rush.remind = True
+				rush.reminder = True
 		delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
 		await asyncio.sleep(delay)
 	return
