@@ -318,13 +318,12 @@ async def status(ctx):
 	await ctx.send(msg)
 
 #showing next occurence of each rush
-@bot.command(name = 'nextrush')
-async def nextrush(ctx, rush_name):
-	#show xp rush
+@bot.command(name = 'when')
+async def when(ctx, rush_name):
 	update()
 	msg = "All times displayed in UTC.\n"
 	if rush_name == "all":
-		#show resource rush
+		#show xp rush
 		for rush in bot.list_of_xp_rush:
 			msg += f'**__{rush.name[0]} Rush__** {rush.emoji}\n'
 			for item in rush.list:
@@ -340,6 +339,9 @@ async def nextrush(ctx, rush_name):
 			if len(rush.list) < rush.limit:
 				msg += f'{rush.limit-len(rush.list)} cycle(s) missing.\n'
 	else:
+		if not(rush_name in bot.all_rush): 
+			await ctx.send('Sorry, this rush type is not recognized. The recognized rushes are ' + ', '.join(bot.rush_names) + '.')
+			return
 		for rush_obj in bot.list_of_rush: 
 			if rush_name in rush_obj.name:
 				break
@@ -348,6 +350,17 @@ async def nextrush(ctx, rush_name):
 			msg += f"{item.next.strftime('%d/%m/%y %A %H:%M')}\n"
 		if len(rush_obj.list) < rush_obj.limit:
 			msg += f'{rush_obj.limit-len(rush_obj.list)} cycle(s) missing.\n'
+	await ctx.send(msg)
+
+#show next rush
+@bot.command(name = 'nextrush')
+async def nextrush(ctx):
+	update()
+	if bot.upcoming_rush == []:
+		await ctx.send(f'There are no rushes recorded, please add the rush cycles with !set and !add.')
+		return
+	rush = bot.upcoming_rush[0]
+	msg = f"The next rush is {rush.name} Rush {rush.emoji} at {rush.next.strftime('%d/%m/%y %A %H:%M')}."
 	await ctx.send(msg)
 
 #showing rushes in next 7 days
@@ -366,7 +379,7 @@ async def nextweek(ctx):
 
 #showing upcoming rushes today
 @bot.command(name = 'today')
-async def nextweek(ctx):
+async def today(ctx):
 	#show xp rush
 	update()
 	msg = "All times displayed in UTC. Only upcoming rushes within today are shown.\n"
@@ -436,7 +449,8 @@ async def nextweek(ctx):
 	msg += f'**__!add__**:\nadd new rush cycle. Time in UTC.\nFormat !add [rush name] [dd/mm/yy HH:MM].\n'
 	msg += f'**__!modify__**:\nmodify existing rush cycle. Time in UTC.\nFormat !modify [rush name]. \n'
 	msg += f'**__!status__**:\nshow status of recorded rushes, including last occurence of each rush. Time in UTC.\nFormat !status.\n'
-	msg += f'**__!nextrush__**:\nquery next occurence of specific or all rushes. Time in UTC.\nFormat !nextrush [rush name/all]. \n'
+	msg += f'**__!when__**:\nquery next occurence of specific or all rushes. Time in UTC.\nFormat !when [rush name/all]. \n'
+	msg += f'**__!nextrush__**:\nshow when is the next rush. Time in UTC.\nFormat !nextrush. \n'
 	msg += f'**__!nextweek__**:\nshow all rushes in the next 7 days. Time in UTC.\nFormat !nextweek.\n'
 	msg += f'**__!today__**:\nshow all upcoming rushes within today. Time in UTC.\nFormat !today.\n'
 	msg += f'**__!announcement__**:\nset up rush announcement in channel.\nFormat !announcement [number of hours in advance for announcement].\n'
