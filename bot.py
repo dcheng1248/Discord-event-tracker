@@ -60,6 +60,18 @@ def get_day_hour(timedelta):
 	return timedelta.days, timedelta.seconds//3600
 
 def initialize():
+	#emoji dictionary
+	bot.emoji_dict = {'Fire': '<:Red:1005425349988982886>', 
+					'Earth': '<:Green:1005425336080683112>', 
+					'Sea': '<:Blue:1005425329260728351>', 
+					'Sun': '<:Light:1005425342082715712>',
+					'Moon': '<:Dark:1005425330342875207>',
+					'Chromatic': '<:Red:1005425349988982886> <:Green:1005425336080683112> <:Blue:1005425329260728351> <:Light:1005425342082715712> <:Dark:1005425330342875207>',
+					'Rainbow': ':rainbow:',
+					'Dragon': ':dragon_face:',
+					'Gold': ':coin:',
+					'Talent': '<:TalentRune:1005425358838968391>',
+					'Scramble': '<:SilverTalentRune:1005425356137828383>'}
 	#cycles
 	bot.xp_cycle = None
 	bot.resource_cycle = None
@@ -105,19 +117,6 @@ def initialize():
 	bot.announcement_channels = []
 	bot.announcement_continues = []
 
-	#emoji dictionary
-	bot.emoji_dict = {'Fire': '<:Red:1005425349988982886>', 
-					'Earth': '<:Green:1005425336080683112>', 
-					'Sea': '<:Blue:1005425329260728351>', 
-					'Sun': '<:Light:1005425342082715712>',
-					'Moon': '<:Dark:1005425330342875207>',
-					'Chromatic': '<:Red:1005425349988982886> <:Green:1005425336080683112> <:Blue:1005425329260728351> <:Light:1005425342082715712> <:Dark:1005425330342875207>',
-					'Rainbow': ':rainbow:',
-					'Dragon': ':dragon_face:',
-					'Gold': ':coin:',
-					'Talent': '<:TalentRune:1005425358838968391>',
-					'Scramble': '<:SilverTalentRune:1005425356137828383>'}
-
 def update():
 	#reset upcoming
 	bot.upcoming_rush = []
@@ -135,33 +134,35 @@ def update():
 	bot.upcoming_rush.sort(key=lambda x: x.next)
 	bot.upcoming_xp_rush.sort(key=lambda x: x.next)
 	bot.upcoming_resource_rush.sort(key=lambda x: x.next)
-	pickle()
+	pickle_data()
 
-def pickle():
+def pickle_data():
 	#save data into pickle file
-	pickle_list = [bot.all_rush, bot.xp_rush, bot.resource_rush]
+	pickle_list = [bot.list_of_rush, bot.list_of_xp_rush, bot.list_of_resource_rush, bot.xp_cycle, bot.resource_cycle]
 	with open('data.pkl', 'wb') as f:
 		pickle.dump(pickle_list, f)
 
-def unpickle():
+def unpickle_data():
 	with open('data.pkl', 'rb') as f:
 		pickle_list = pickle.load(f)
 
-	bot.all_rush = pickle_list[0]
-	bot.xp_rush = pickle_list [1]
-	bot.resource_rush = pickle_list[2]
+	bot.list_of_rush = pickle_list[0]
+	bot.list_of_xp_rush = pickle_list [1]
+	bot.list_of_resource_rush = pickle_list[2]
+	bot.xp_cycle = pickle_list[3]
+	bot.resource_cycle = pickle_list[4]
 
-	bot.red = bot.all_rush[0]
-	bot.green = bot.all_rush[1]
-	bot.blue = bot.all_rush[2]
-	bot.light = bot.all_rush[3]
-	bot.dark = bot.all_rush[4]
-	bot.chromatic = bot.all_rush[5]
-	bot.rainbow = bot.all_rush[6]
-	bot.dragon = bot.all_rush[7]
-	bot.gold = bot.all_rush[8]
-	bot.showdown = bot.all_rush[9]
-	bot.scramble = bot.all_rush[10]
+	bot.red = bot.list_of_rush[0]
+	bot.green = bot.list_of_rush[1]
+	bot.blue = bot.list_of_rush[2]
+	bot.light = bot.list_of_rush[3]
+	bot.dark = bot.list_of_rush[4]
+	bot.chromatic = bot.list_of_rush[5]
+	bot.rainbow = bot.list_of_rush[6]
+	bot.dragon = bot.list_of_rush[7]
+	bot.gold = bot.list_of_rush[8]
+	bot.showdown = bot.list_of_rush[9]
+	bot.scramble = bot.list_of_rush[10]
 	update()
 
 @bot.event
@@ -170,10 +171,10 @@ async def on_ready():
 	initialize()
 	channel = bot.get_channel(1076667650635206818)
 	await channel.send(f'Rush trakcer is ready. Would you like to load previously stored rush data (used for when bot goes down unexpectedly)? (yes/no)')
-	msg = bot.wait_for('message', timeout = 60)
-	if msg in ["Yes", "yes"]:
-		unpickle()
-		channel.send(f'Stored data has been loaded. Please use !status to check the data and !announcement to reset announcements.')
+	msg = await bot.wait_for('message', timeout = 60)
+	if msg.content in ["Yes", "yes"]:
+		unpickle_data()
+		await channel.send(f'Stored data has been loaded. Please use !status to check the data and !announcement to reset announcements.')
 
 #set rush intervals
 @bot.command(name = 'set')
