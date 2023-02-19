@@ -125,9 +125,11 @@ def update():
 
 	for rush in bot.list_of_xp_rush:
 		rush.update(bot.xp_cycle)
+		rush.list.sort(key=lambda x:x.next)
 		bot.upcoming_xp_rush += rush.list
 	for rush in bot.list_of_resource_rush:
 		rush.update(bot.resource_cycle)
+		rush.list.sort(key=lambda x:x.next)
 		bot.upcoming_resource_rush += rush.list
 	bot.upcoming_rush = bot.upcoming_xp_rush + bot.upcoming_resource_rush
 
@@ -168,13 +170,13 @@ def unpickle_data():
 @bot.event
 async def on_ready():
 	print(f'{bot.user} has connected to Discord!')
-	initialize()
 	channel = bot.get_channel(1076667650635206818)
-	await channel.send(f'Rush trakcer is ready. Would you like to load previously stored rush data (used for when bot goes down unexpectedly)? (yes/no)')
-	msg = await bot.wait_for('message', timeout = 60)
-	if msg.content in ["Yes", "yes"]:
+	initialize()
+	if os.path.isfile('data.pkl'):
 		unpickle_data()
-		await channel.send(f'Stored data has been loaded. Please use !status to check the data and !announcement to reset announcements.')
+		await channel.send(f'Rush tracker is online. Stored rush data has been loaded. Please use !status to check the data and !announcement to reset announcements. Use !reset if you wish to reset the bot.')
+	else:
+		await channel.send(f'Rush tracker is online. No stored rush data is found. Please add the rush cycles and rushes.')
 
 #set rush intervals
 @bot.command(name = 'set')
@@ -280,6 +282,7 @@ async def modify(ctx, rush_name):
 	start_time = start_time.replace(tzinfo = datetime.timezone.utc)
 	rush_obj.list[item].modify(start_time)
 	await ctx.send(f'This cycle has been modified with start time {start.content} UTC.')
+	update()
 
 #showing recorded status
 @bot.command(name = 'status')
@@ -361,6 +364,22 @@ async def nextweek(ctx):
 				msg += f"{rush.name} Rush {rush.next.strftime('%H:%M')}\n"
 	await ctx.send(msg)
 
+#showing upcoming rushes today
+@bot.command(name = 'today')
+async def nextweek(ctx):
+	#show xp rush
+	update()
+	msg = "All times displayed in UTC. Only upcoming rushes within today are shown.\n"
+	date = datetime.datetime.utcnow().date()
+	count = 0
+	for rush in bot.upcoming_rush:
+		if rush.next.date() == date:
+			count += 1
+			msg += f"{rush.name} Rush {rush.emoji} {rush.next.strftime('%H:%M')}\n"
+	if count == 0:
+		msg += f'There are no more upcoming rushes today.'
+	await ctx.send(msg)
+
 #send rush reminders
 async def check_every_hour(channel_idx, time):
 	now = datetime.datetime.now(datetime.timezone.utc)
@@ -373,7 +392,7 @@ async def check_every_hour(channel_idx, time):
 			if (rush.next - now <= datetime.timedelta(seconds = time)) and (not rush.reminder):
 				await bot.wait_until_ready()
 				channel = bot.get_channel(bot.announcement_channels[channel_idx])
-				await channel.send(f"{rush.name} Rush {rush.emoji} at <t:{round(rush.next.timestamp())}:t> (<t:{round(rush.next.timestamp())}:R>).")
+				await channel.send(f"{rush.name} Rush {rush.emoji} at <t:{round(rush.next.timestamp())}:t> (approx. <t:{round(rush.next.timestamp())}:R>).")
 				rush.reminder = True
 		delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
 		await asyncio.sleep(delay)
@@ -407,6 +426,7 @@ async def nextweek(ctx):
 	if msg.content in ["Yes", "yes"]:
 		initialize()
 		await ctx.send(f'The rush scheudle has been reset.')
+	update()
 
 #help
 @bot.command(name = 'help')
@@ -419,7 +439,7 @@ async def nextweek(ctx):
 	msg += f'**!nextrush**:\nquery next occurence of specific or all rushes. Time in UTC.\nFormat !nextrush [rush name/all]. \n'
 	msg += f'**!nextweek**:\nshow all rushes in the next 7 days. Time in UTC.\nFormat !nextweek.\n'
 	msg += f'**!announcement**:\nset up rush announcement in channel.\nFormat !announcement [number of hours in advance for announcement].\n'
-	msg += f'**!reset**:\nclear all recorded data andd announcements.\n'
+	msg += f'**!reset**:\nclear all recorded data and announcements.\n'
 	await ctx.send(msg)
 
 bot.run(TOKEN)
