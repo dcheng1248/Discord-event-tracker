@@ -432,14 +432,15 @@ async def nextweek(ctx):
 @bot.command(name = 'help')
 async def nextweek(ctx):
 	msg = f'Here are the possible commands and their respective formatting for this bot.\n'
-	msg += f'**!set**:\nset rush intervals.\nFormat !set [xp/resource] [day-hours].\n'
-	msg += f'**!add**:\nadd new rush cycle. Time in UTC.\nFormat !add [rush name] [dd/mm/yy HH:MM].\n'
-	msg += f'**!modify**:\nmodify existing rush cycle. Time in UTC.\nFormat !modify [rush name]. \n'
-	msg += f'**!status**:\nshow status of recorded rushes, including last occurence of each rush. Time in UTC.\nFormat !status.\n'
-	msg += f'**!nextrush**:\nquery next occurence of specific or all rushes. Time in UTC.\nFormat !nextrush [rush name/all]. \n'
-	msg += f'**!nextweek**:\nshow all rushes in the next 7 days. Time in UTC.\nFormat !nextweek.\n'
-	msg += f'**!announcement**:\nset up rush announcement in channel.\nFormat !announcement [number of hours in advance for announcement].\n'
-	msg += f'**!reset**:\nclear all recorded data and announcements.\n'
+	msg += f'**__!set__**:\nset rush intervals.\nFormat !set [xp/resource] [day-hours].\n'
+	msg += f'**__!add__**:\nadd new rush cycle. Time in UTC.\nFormat !add [rush name] [dd/mm/yy HH:MM].\n'
+	msg += f'**__!modify__**:\nmodify existing rush cycle. Time in UTC.\nFormat !modify [rush name]. \n'
+	msg += f'**__!status__**:\nshow status of recorded rushes, including last occurence of each rush. Time in UTC.\nFormat !status.\n'
+	msg += f'**__!nextrush__**:\nquery next occurence of specific or all rushes. Time in UTC.\nFormat !nextrush [rush name/all]. \n'
+	msg += f'**__!nextweek__**:\nshow all rushes in the next 7 days. Time in UTC.\nFormat !nextweek.\n'
+	msg += f'**__!today__**:\nshow all upcoming rushes within today. Time in UTC.\nFormat !today.\n'
+	msg += f'**__!announcement__**:\nset up rush announcement in channel.\nFormat !announcement [number of hours in advance for announcement].\n'
+	msg += f'**__!reset__**:\nclear all recorded data and announcements.\n'
 	await ctx.send(msg)
 
 bot.run(TOKEN)
