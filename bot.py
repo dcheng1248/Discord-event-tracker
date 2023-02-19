@@ -360,7 +360,7 @@ async def nextrush(ctx):
 		await ctx.send(f'There are no rushes recorded, please add the rush cycles with !set and !add.')
 		return
 	rush = bot.upcoming_rush[0]
-	msg = f"The next rush is {rush.name} Rush {rush.emoji} at {rush.next.strftime('%d/%m/%y %A %H:%M')}."
+	msg = f"The next rush is {rush.name} Rush {rush.emoji} at {rush.next.strftime('%d/%m/%y %A %H:%M')} (time in UTC)."
 	await ctx.send(msg)
 
 #showing rushes in next 7 days
