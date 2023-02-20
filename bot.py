@@ -16,6 +16,8 @@ class rush:
 		self.emoji = emoji
 		self.cycle = cycle #interval
 		self.curr = start #previous occurence
+		while self.curr + cycle <= datetime.datetime.now(datetime.timezone.utc):
+			self.curr += cycle
 		if self.curr <= datetime.datetime.now(datetime.timezone.utc):
 			self.next = start + cycle #next occurence
 		else:
@@ -26,6 +28,7 @@ class rush:
 		if self.next < datetime.datetime.now(datetime.timezone.utc):
 			self.curr = self.next
 			self.next = self.next + self.cycle
+			self.reminder = False
 		else:
 			self.next = self.curr + self.cycle
 	def modify(self, new_start): #update start time
@@ -138,6 +141,11 @@ def update():
 	bot.upcoming_resource_rush.sort(key=lambda x: x.next)
 	pickle_data()
 
+def reset_announced():
+	for rush in bot.list_of_rush:
+		for item in rush.list:
+			item.reminder = False
+
 def pickle_data():
 	#save data into pickle file
 	pickle_list = [bot.list_of_rush, bot.list_of_xp_rush, bot.list_of_resource_rush, bot.xp_cycle, bot.resource_cycle]
@@ -165,6 +173,7 @@ def unpickle_data():
 	bot.gold = bot.list_of_rush[8]
 	bot.showdown = bot.list_of_rush[9]
 	bot.scramble = bot.list_of_rush[10]
+	reset_announced()
 	update()
 
 @bot.event
@@ -423,6 +432,7 @@ async def nextweek(ctx, hours:int):
 					bot.announcement_continues[i] = False
 			bot.announcement_channels.append(ctx.channel.id)
 			bot.announcement_continues.append(True)
+			reset_announced()
 			await ctx.send(f'Rushes will be announced {hours} hours in advance.')
 			await check_every_hour(len(bot.announcement_channels)-1, hours*3600)
 	else:
