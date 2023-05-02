@@ -29,8 +29,11 @@ class rush:
 			self.curr = self.next
 			self.next = self.next + self.cycle
 			self.reminder = False
-		else:
+		elif self.curr < datetime.datetime.now(datetime.timezone.utc):
 			self.next = self.curr + self.cycle
+		else:
+			self.next = self.curr 
+
 	def modify(self, new_start): #update start time
 		self.curr = new_start
 		if self.curr <= datetime.datetime.now(datetime.timezone.utc):
