@@ -384,15 +384,20 @@ async def nextrush(ctx):
 #showing rushes in next 7 days
 @bot.command(name = 'nextweek')
 async def nextweek(ctx):
-	#show xp rush
 	update()
-	msg = "All times displayed in UTC.\n"
-	for i in range(0,8):
-		date = datetime.datetime.utcnow().date() + datetime.timedelta(days = i)
-		msg += f"**__{date.strftime('%d/%m/%y %A')}__**\n"
-		for rush in bot.upcoming_rush:
-			if rush.next.date() == date:
-				msg += f"{rush.name} Rush {rush.next.strftime('%H:%M')}\n"
+	now = datetime.datetime.now(datetime.timezone.utc)
+	msg = "Rushes occuring in the next 7 days. All times displayed in your local time.\n"
+	#show xp rush
+	msg += f"**__XP Rush__**\n"
+	for rush in bot.upcoming_xp_rush:
+		if rush.next - now <= datetime.timedelta(days = 7):
+			msg += f'**{rush.name} Rush** {rush.emoji}: <t:{round(rush.next.timestamp())}:t> (<t:{round(rush.next.timestamp())}:R>)\n'
+	msg += '\n'
+	#show resource rush
+	msg += f"**__Resource Rush__**\n"
+	for rush in bot.upcoming_resource_rush:
+		if rush.next - now <= datetime.timedelta(days = 7):
+			msg += f'**{rush.name} Rush** {rush.emoji}: <t:{round(rush.next.timestamp())}:t> (<t:{round(rush.next.timestamp())}:R>)\n'
 	await ctx.send(msg)
 
 #showing upcoming rushes today
@@ -400,13 +405,13 @@ async def nextweek(ctx):
 async def today(ctx):
 	#show xp rush
 	update()
-	msg = "All times displayed in UTC. Only upcoming rushes within today are shown.\n"
-	date = datetime.datetime.utcnow().date()
+	now = datetime.datetime.now(datetime.timezone.utc)
+	msg = "Rushes occuring in the next 24 hours. All times displayed in your local time.\n"
 	count = 0
 	for rush in bot.upcoming_rush:
-		if rush.next.date() == date:
+		if rush.next - now <= datetime.timedelta(days = 1):
+			msg += f'**{rush.name} Rush** {rush.emoji}: <t:{round(rush.next.timestamp())}:t> (<t:{round(rush.next.timestamp())}:R>)\n'
 			count += 1
-			msg += f"{rush.name} Rush {rush.emoji} {rush.next.strftime('%H:%M')}\n"
 	if count == 0:
 		msg += f'There are no more upcoming rushes today.'
 	await ctx.send(msg)
