@@ -5,8 +5,10 @@ import datetime
 from discord.ext import commands
 import asyncio
 import pickle
+from dotenv import load_dotenv
 
-TOKEN = 'MTA3NTE2MzM0MTY1MzI4NjkxMw.GLzEFT.OKMSJ3IjdRBv-K3Mke1KygP4rcZVlr0xONxptE'
+load_dotenv()
+TOKEN = os.getenv("DISCORD_TOKEN")
 bot = commands.Bot(intents = discord.Intents.all(), command_prefix = '!', help_command = None)
 
 #each rush
@@ -23,13 +25,14 @@ class rush:
 		else:
 			self.next = start
 		self.reminder = False
+
 	def update(self, cycle): #update occurences, change cycle
 		self.cycle = cycle
-		if self.next < datetime.datetime.now(datetime.timezone.utc):
+		while self.next < datetime.datetime.now(datetime.timezone.utc):
 			self.curr = self.next
 			self.next = self.next + self.cycle
 			self.reminder = False
-		elif self.curr < datetime.datetime.now(datetime.timezone.utc):
+		if self.curr < datetime.datetime.now(datetime.timezone.utc):
 			self.next = self.curr + self.cycle
 		else:
 			self.next = self.curr 
@@ -122,6 +125,9 @@ def initialize():
 	#tracking channels with announcements
 	bot.announcement_channels = []
 	bot.announcement_continues = []
+
+	#tracking list events
+	bot.list_events = False
 
 def update():
 	#reset upcoming
@@ -381,7 +387,7 @@ async def nextweek(ctx):
 	#show xp rush
 	update()
 	msg = "All times displayed in UTC.\n"
-	for i in range(1,8):
+	for i in range(0,8):
 		date = datetime.datetime.utcnow().date() + datetime.timedelta(days = i)
 		msg += f"**__{date.strftime('%d/%m/%y %A')}__**\n"
 		for rush in bot.upcoming_rush:
@@ -425,7 +431,7 @@ async def check_every_hour(channel_idx, time):
 
 #set up announcement
 @bot.command(name = 'announcement')
-async def nextweek(ctx, hours:int):
+async def announcement(ctx, hours:int):
 	if ctx.channel.id in bot.announcement_channels:
 		await ctx.send("Announcements are already set up here. Do you want to change the announcement time? (yes/no)")
 		msg = await bot.wait_for('message', timeout = 60)
@@ -444,9 +450,58 @@ async def nextweek(ctx, hours:int):
 		await ctx.send(f'Rushes will be announced {hours} hours in advance.')
 		await check_every_hour(len(bot.announcement_channels)-1, hours*3600)
 
+#send list event message
+async def send_list(channel_id):
+	channel = bot.get_channel(channel_id)
+	await channel.purge()
+	msg = "All times in your local time.\n"
+	msg += f'**__XP Rush__**\n'
+	for rush in bot.upcoming_xp_rush:
+		msg += f'**{rush.name} Rush** {rush.emoji}: <t:{round(rush.next.timestamp())}:F>\n'
+	msg += f'\n'
+	msg += f'**__Resource Rush__**\n'
+	for rush in bot.upcoming_resource_rush:
+		msg += f'**{rush.name} Rush** {rush.emoji}: <t:{round(rush.next.timestamp())}:F>\n'
+	await channel.send(msg)
+
+#set up event list
+@bot.command(name = 'listevents')
+async def listevents(ctx, *args):
+	update()
+	if len(args) > 0:
+		if args[0] == "off":
+			bot.list_events = False
+			await ctx.send(f'Event listing is turned off in this channel.')
+			return
+		else:
+			await ctx.send(f'Sorry, this command is not recognized.')
+			return
+	else:
+		if bot.list_events == True:
+			await ctx.send(f'Event listing has already been turned on in this channel.')
+			return
+	bot.list_events = True
+	await ctx.send(f'Event listing is turned on in this channel.')
+	channel_id = ctx.channel.id
+	now = datetime.datetime.now(datetime.timezone.utc)
+	delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
+	rush_times = [rush.next for rush in bot.upcoming_rush]
+	await send_list(channel_id)
+	await asyncio.sleep(delay)
+	while bot.list_events: #need to add break
+		update()
+		new_rush_times = [rush.next for rush in bot.upcoming_rush]
+		if new_rush_times != rush_times:
+			await send_list(channel_id)
+			rush_times = new_rush_times
+		now = datetime.datetime.now(datetime.timezone.utc)
+		delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
+		await asyncio.sleep(delay)
+	return
+
 #reset bot
 @bot.command(name = 'reset')
-async def nextweek(ctx):
+async def reset(ctx):
 	await ctx.send(f'Are you sure you want to reset the rush schedule? All recorded rush instance and announcement setups will be deleted. (yes/no)')
 	msg = await bot.wait_for('message', timeout = 60)
 	if msg.content in ["Yes", "yes"]:
@@ -456,7 +511,7 @@ async def nextweek(ctx):
 
 #help
 @bot.command(name = 'help')
-async def nextweek(ctx):
+async def help(ctx):
 	msg = f'Here are the possible commands and their respective formatting for this bot.\n'
 	msg += f'**__!set__**:\nset rush intervals.\nFormat !set [xp/resource] [day-hours].\n'
 	msg += f'**__!add__**:\nadd new rush cycle. Time in UTC.\nFormat !add [rush name] [dd/mm/yy HH:MM].\n'
