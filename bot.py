@@ -558,7 +558,8 @@ async def help(ctx):
 	msg += f'**__!nextrush__**:\nshow when is the next rush. Time in UTC.\nFormat !nextrush. \n'
 	msg += f'**__!nextweek__**:\nshow all rushes in the next 7 days. Time in UTC.\nFormat !nextweek.\n'
 	msg += f'**__!today__**:\nshow all upcoming rushes within today. Time in UTC.\nFormat !today.\n'
-	msg += f'**__!announcement__**:\nset up rush announcement in channel.\nFormat !announcement [number of hours in advance for announcement].\n'
+	msg += f'**__!announcement__**:\nset up rush announcement in channel.\nFormat !announcement [number of hours in advance for announcement].\nFormat !announcement off to turn announcements off.\n'
+	msg += f'**__!listevents__**:\nset up dynamic event calendar in channel.\nFormat !listevents.\nFormat !listevents off to turn event listing off.\n'
 	msg += f'**__!reset__**:\nclear all recorded data and announcements.\n'
 	await ctx.send(msg)
 
