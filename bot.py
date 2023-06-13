@@ -123,11 +123,13 @@ def initialize():
 	bot.upcoming_resource_rush = []
 
 	#tracking channels with announcements
-	bot.announcement_channels = []
-	bot.announcement_continues = []
+	bot.announcement = False
+	bot.announcement_channel = None
+	bot.announcement_time = None
 
 	#tracking list events
 	bot.list_events = False
+	bot.list_events_channel = None
 
 def update():
 	#reset upcoming
@@ -416,48 +418,61 @@ async def today(ctx):
 		msg += f'There are no more upcoming rushes today.'
 	await ctx.send(msg)
 
-#send rush reminders
-async def check_every_hour(channel_idx, time):
-	now = datetime.datetime.now(datetime.timezone.utc)
-	delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
-	await asyncio.sleep(delay)
-	while bot.announcement_continues[channel_idx]: #need to add break
-		update()
-		now = datetime.datetime.now(datetime.timezone.utc)
-		for rush in bot.upcoming_rush:
-			if (rush.next - now <= datetime.timedelta(seconds = time)) and (not rush.reminder):
-				await bot.wait_until_ready()
-				channel = bot.get_channel(bot.announcement_channels[channel_idx])
-				await channel.send(f"{rush.name} Rush {rush.emoji} at <t:{round(rush.next.timestamp())}:t> (approx. <t:{round(rush.next.timestamp())}:R>).")
-				rush.reminder = True
-		delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
-		await asyncio.sleep(delay)
-	return
-
 #set up announcement
 @bot.command(name = 'announcement')
-async def announcement(ctx, hours:int):
-	if ctx.channel.id in bot.announcement_channels:
+async def announcement(ctx, *args):
+	if len(args) == 0: #no argument
+		await ctx.send(f'Sorry, an argument is required for this command.')
+		return
+	print(bot.announcement)
+	if args[0] == "off":
+		if (ctx.channel == bot.announcement_channel) and bot.announcement: #turning off
+			bot.announcement = False
+			bot.announcement_channel = None
+			bot.announcement_time = None
+			await ctx.send(f'Announcements is turned off in this channel.')
+			return
+		elif bot.announcement: #off command in wrong channel
+			await ctx.send(f'Announcements was turned on at {bot.announcement_channel.mention}. Please turn off announcements there.')
+			return
+		else: #no announcements turned on
+			await ctx.send(f'Announcements has not been turned on.')
+			return
+
+	if args[0].isnumeric(): #argument is number of hours
+		hours = int(args[0])
+	else: #wrong argument
+		await ctx.send(f'Sorry, a numerical argument is needed to turn announcements on. Use !help for more inforrmation.')
+		return
+
+	if (ctx.channel == bot.announcement_channel):
 		await ctx.send("Announcements are already set up here. Do you want to change the announcement time? (yes/no)")
 		msg = await bot.wait_for('message', timeout = 60)
 		if msg.content in ["Yes", "yes"]:
-			for i in range(len(bot.announcement_channels)):
-				if bot.announcement_channels[i] == ctx.channel.id:
-					bot.announcement_continues[i] = False
-			bot.announcement_channels.append(ctx.channel.id)
-			bot.announcement_continues.append(True)
+			bot.announcement_time = hours
 			reset_announced()
 			await ctx.send(f'Rushes will be announced {hours} hours in advance.')
-			await check_every_hour(len(bot.announcement_channels)-1, hours*3600)
 	else:
-		bot.announcement_channels.append(ctx.channel.id)
-		bot.announcement_continues.append(True)
+		bot.announcement = True
+		bot.announcement_channel = ctx.channel
+		bot.announcement_time = hours
 		await ctx.send(f'Rushes will be announced {hours} hours in advance.')
-		await check_every_hour(len(bot.announcement_channels)-1, hours*3600)
+		now = datetime.datetime.now(datetime.timezone.utc)
+		delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
+		await asyncio.sleep(delay)
+		while bot.announcement: #need to add break
+			update()
+			now = datetime.datetime.now(datetime.timezone.utc)
+			for rush in bot.upcoming_rush:
+				if (rush.next - now <= datetime.timedelta(hours = bot.announcement_time)) and (not rush.reminder):
+					await bot.wait_until_ready()
+					await bot.announcement_channel.send(f"{rush.name} Rush {rush.emoji} at <t:{round(rush.next.timestamp())}:t> (approx. <t:{round(rush.next.timestamp())}:R>).")
+					rush.reminder = True
+			delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
+			await asyncio.sleep(delay)
 
 #send list event message
-async def send_list(channel_id):
-	channel = bot.get_channel(channel_id)
+async def send_list(channel):
 	await channel.purge()
 	msg = "All times in your local time.\n"
 	msg += f'**__XP Rush__**\n'
@@ -475,33 +490,50 @@ async def listevents(ctx, *args):
 	update()
 	if len(args) > 0:
 		if args[0] == "off":
-			bot.list_events = False
-			await ctx.send(f'Event listing is turned off in this channel.')
-			return
+			if (ctx.channel == bot.list_events_channel) and bot.list_events: #turning off
+				bot.list_events = False
+				bot.list_events_channel = None
+				await ctx.send(f'Event listing is turned off in this channel.')
+				return
+			elif bot.list_events: #off command in wrong channel
+				await ctx.send(f'Event listing was turned on at {bot.list_events_channel.mention}. Please turn off the event listing there.')
+				return
+			else: #no event listing turned on
+				await ctx.send(f'Event listing has not been turned on.')
+				return
 		else:
-			await ctx.send(f'Sorry, this command is not recognized.')
+			await ctx.send(f'Sorry, this command is not recognized.') #wrong command
 			return
 	else:
-		if bot.list_events == True:
+		if (ctx.channel == bot.list_events_channel) and bot.list_events: #event listing already on in channel
 			await ctx.send(f'Event listing has already been turned on in this channel.')
 			return
-	bot.list_events = True
-	await ctx.send(f'Event listing is turned on in this channel.')
-	channel_id = ctx.channel.id
-	now = datetime.datetime.now(datetime.timezone.utc)
-	delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
-	rush_times = [rush.next for rush in bot.upcoming_rush]
-	await send_list(channel_id)
-	await asyncio.sleep(delay)
-	while bot.list_events: #need to add break
-		update()
-		new_rush_times = [rush.next for rush in bot.upcoming_rush]
-		if new_rush_times != rush_times:
-			await send_list(channel_id)
-			rush_times = new_rush_times
+		elif bot.list_events: #event listing on in different channel
+			await ctx.send(f'Event listing was turned on at {bot.list_events_channel.mention}. This bot only supports event listing in one channel. Please turn event listing off in that channel before you turn it on here.')
+			return
+
+	await ctx.send("Turning on event listing will delete all previous messages in this channel. Are you sure you want to turn on event listing here? (yes/no)")
+	msg = await bot.wait_for('message', timeout = 60)
+	if msg.content in ["Yes", "yes"]:
+		bot.list_events = True
+		bot.list_events_channel = ctx.channel
+		await ctx.send(f'Event listing is turned on in this channel.')
 		now = datetime.datetime.now(datetime.timezone.utc)
 		delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
+		rush_times = [rush.next for rush in bot.upcoming_rush]
+		await send_list(bot.list_events_channel)
 		await asyncio.sleep(delay)
+		while bot.list_events: #need to add break
+			update()
+			new_rush_times = [rush.next for rush in bot.upcoming_rush]
+			if new_rush_times != rush_times:
+				await send_list(bot.list_events_channel)
+				rush_times = new_rush_times
+			now = datetime.datetime.now(datetime.timezone.utc)
+			delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
+			await asyncio.sleep(delay)
+	else:
+		await ctx.send(f'Event listing has not been turned on.')
 	return
 
 #reset bot
