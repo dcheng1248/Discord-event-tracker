@@ -8,6 +8,7 @@ import pickle
 from dotenv import load_dotenv
 import yaml
 import itertools
+import re
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -118,7 +119,7 @@ def initialize():
 	bot.all_event = [[event for event_list_obj in event_type_obj.list for event in event_list_obj.list] for event_type_obj in bot.event_types]
 
 	#for tracking upcoming rushes
-	bot.upcoming_rush = []
+	bot.upcoming_events = []
 
 	#tracking channels with announcements
 	bot.announcement = False
@@ -173,13 +174,16 @@ async def on_ready():
 		channel = guild.system_channel
 	if os.path.isfile('data.pkl'):
 		unpickle_data()
-		await channel.send(f'Rush tracker is online. Stored rush data has been loaded. Please use !status to check the data and !announcement to reset announcements. Use !reset if you wish to reset the bot.')
+		await channel.send(f'Event tracker is online. Stored event data has been loaded. Please use !status to check the data, !announcement to reset announcements and !listevents to reset dynamic event listing. Use !reset if you wish to reset the bot.')
 	else:
-		await channel.send(f'Rush tracker is online. No stored rush data is found. Please add the rush cycles and rushes.')
+		await channel.send(f'Event tracker is online. No stored event data is found. Please add the event cycles and rushes.')
 
 #set rush intervals
 @bot.command(name = 'set')
 async def set(ctx, event_type, interval):
+	if re.fullmatch('\d{1,}-\d{2}', interval) == None:
+		await ctx.send("The format of the time interval is incorrect. Please enter the format in dd-HH.")
+		return
 	day, hour = interval.split("-")
 	found = False
 	for event_type_obj in bot.event_types:
@@ -198,39 +202,12 @@ async def set(ctx, event_type, interval):
 		await ctx.send(f'The event type you entered does not exist. Please use !help for formatting help.')
 
 @bot.command(name = 'add')
-async def add(ctx, event_name, *, start):
-	#check rush name makes sense
-	all_event_names = flatten([event_list_obj.name for event_list_obj in flatten(bot.all_event_list)])
-	if not(event_name in all_event_names):
-		await ctx.send('Sorry, this event type is not recognized. The recognized events are ' + ', '.join(bot.event_names) + '.')
-		return
-	for event_list_obj in flatten(bot.all_event_list):
-		if event_name in event_list_obj.name:
-			break
-	#if cycle has not been set
-	if event_list_obj.parent.cycle == None: 
-		await ctx.send(f'The {event_list_obj.parent.name} interval has not been set. Use the !set command to set the interval first.')
-		return
-	#convert start time to datetime object
-	start_time = datetime.datetime.strptime(start, '%d/%m/%y %H:%M')
-	start_time = start_time.replace(tzinfo = datetime.timezone.utc)
-	#check rush is not already full
-	if not event_list_obj.full:
-		event_list_obj.add_event(start_time)
-		event_list_obj.full_check()
-		await ctx.send(f'A {event_list_obj.name[0]} {event_list_obj.parent.event_name} starting at {start} UTC has been added.')
-	else:
-		await ctx.send(f'There are already {event_list_obj.limit} cycles recorded for this event. Please modify a cycle instead.')
-	update()
-
-@bot.command(name = 'add')
 async def add(ctx, *, args):
 	#parse argument
 	commands = args.split(", ")
 	all_event_names = flatten([event_list_obj.name for event_list_obj in flatten(bot.all_event_list)])
 	command_check = True
 	for command in commands:
-		print(command)
 		elements = command.split(" ")
 		if len(elements) != 3:
 			await ctx.send(f'There is an error in your command !add {command}. Please try again or use !help for formatting.')
@@ -250,7 +227,11 @@ async def add(ctx, *, args):
 			await ctx.send(f'The {event_list_obj.parent.name} interval has not been set. Use the !set command to set the interval first.')
 			continue
 		#convert start time to datetime object
-		start_time = datetime.datetime.strptime(start, '%d/%m/%y %H:%M')
+		try:
+			start_time = datetime.datetime.strptime(start, '%d/%m/%y %H:%M')
+		except ValueError:
+			await ctx.send(f'The start time formatting for command !add {command} is incorrect. Please format it as dd/mm/yy HH:MM.')
+			continue
 		start_time = start_time.replace(tzinfo = datetime.timezone.utc)
 		#check rush is not already full
 		if not event_list_obj.full:
@@ -273,7 +254,7 @@ async def modify(ctx, event_name):
 		if event_name in event_list_obj.name:
 			break
 	#list recorded events and ask for input
-	msg = f'Here are the recorded {rush_obj.name[0]} {event_list_obj.parent.event_name}. Enter the numerical code of the event cycle you wish to modify.\n'
+	msg = f'Here are the recorded {event_list_obj.name[0]} {event_list_obj.parent.event_name}. Enter the numerical code of the event cycle you wish to modify.\n'
 	for i in range(len(event_list_obj.list)):
 		msg += f"**{i+1}** : {event_list_obj.list[i].curr.strftime('%d/%m/%y %H:%M')}\n"
 	await ctx.send(msg)
@@ -289,7 +270,12 @@ async def modify(ctx, event_name):
 	#wait for new rush start time input and modify instance
 	await ctx.send(f'Enter the new start time for this cycle in dd/mm/yy HH:MM format.')
 	start = await bot.wait_for('message', timeout = 60)
-	start_time = datetime.datetime.strptime(start.content, '%d/%m/%y %H:%M')
+	start = start.content
+	try:
+		start_time = datetime.datetime.strptime(start, '%d/%m/%y %H:%M')
+	except ValueError:
+		await ctx.send(f'The start time formatting is incorrect. Please format it as dd/mm/yy HH:MM.')
+		return
 	start_time = start_time.replace(tzinfo = datetime.timezone.utc)
 	event_list_obj.list[item].modify(start_time)
 	await ctx.send(f'This cycle has been modified with start time {start.content} UTC.')
@@ -306,60 +292,54 @@ async def status(ctx):
 			msg += f'**__{event_type_obj.name} Cycle:__** No {event_type_obj.name} cycle has been scheduled.\n'
 		else:
 			msg += f'**__{event_type_obj.name} Cycle:__** {event_type_obj.cycle.days} days {event_type_obj.cycle.seconds//3600} hours\n'
-
-	for event_list_obj in flatten(bot.all_event_list):
+	msg += '\n'
+	for event_type_obj in bot.event_types:
+		for event_list_obj in flatten(bot.all_event_list):
+			if (event_list_obj.parent == event_type_obj): 
+				msg += f'**__{event_list_obj.name[0]} {event_list_obj.parent.event_name}__** {event_list_obj.emoji}\n'
+				for event_obj in event_list_obj.list:
+					msg += f"{event_obj.curr.strftime('%d/%m/%y %A %H:%M')}\n"
 		msg += '\n'
-		msg += f'**__{event_list_obj.name[0]} {event_list_obj.parent.event_name}__** {event_list_obj.emoji}\n'
-		for event_obj in event_list_obj.list:
-			msg += f"{event_obj.curr.strftime('%d/%m/%y %A %H:%M')}\n"
-		if len(event_list_obj.list) < event_list_obj.limit:
-			msg += f'{event_list_obj.limit-len(event_list_obj.list)} cycle(s) missing.\n'
 	await ctx.send(msg)
 
 #showing next occurence of each rush
 @bot.command(name = 'when')
-async def when(ctx, rush_name):
+async def when(ctx, event_name):
 	update()
 	msg = "All times displayed in your local time.\n"
-	if rush_name == "all":
-		#show xp rush
-		for rush in bot.list_of_xp_rush:
-			msg += f'**__{rush.name[0]} Rush__** {rush.emoji}\n'
-			for item in rush.list:
-				msg += f"{item.next.strftime('%d/%m/%y %A %H:%M')}\n"
-			if len(rush.list) < rush.limit:
-				msg += f'{rush.limit-len(rush.list)} cycle(s) missing.\n'
-		#show resource rush
-		msg += '\n'
-		for rush in bot.list_of_resource_rush:
-			msg += f'**__{rush.name[0]} Rush__** {rush.emoji}\n'
-			for item in rush.list:
-				msg += f"{item.next.strftime('%d/%m/%y %A %H:%M')}\n"
-			if len(rush.list) < rush.limit:
-				msg += f'{rush.limit-len(rush.list)} cycle(s) missing.\n'
+	if event_name == "all":
+		for event_list_obj in flatten(bot.all_event_list):
+			msg += f'**__{event_list_obj.name[0]} {event_list_obj.parent.event_name}__** {event_list_obj.emoji}\n'
+			for event_obj in event_list_obj.list:
+				msg += f'<t:{round(event_obj.next.timestamp())}:d> <t:{round(event_obj.next.timestamp())}:t> (<t:{round(event_obj.next.timestamp())}:R>)\n'
+			if len(event_list_obj.list) < event_list_obj.limit:
+				msg += f'{event_list_obj.limit-len(event_list_obj.list)} cycle(s) missing.\n'
 	else:
-		if not(rush_name in bot.all_rush): 
-			await ctx.send('Sorry, this rush type is not recognized. The recognized rushes are ' + ', '.join(bot.rush_names) + '.')
+		all_event_names = flatten([event_list_obj.name for event_list_obj in flatten(bot.all_event_list)])
+		if not(event_name in all_event_names): 
+			await ctx.send('Sorry, this event type is not recognized. The recognized events are ' + ', '.join(bot.event_names) + '.')
 			return
-		for rush_obj in bot.list_of_rush: 
-			if rush_name in rush_obj.name:
+		for event_list_obj in flatten(bot.all_event_list): 
+			if event_name in event_list_obj.name:
 				break
-		msg += f'**__{rush_obj.name[0]} Rush__** {rush_obj.emoji}\n'
-		for item in rush_obj.list:
-			msg += f"{item.next.strftime('%d/%m/%y %A %H:%M')}\n"
-		if len(rush_obj.list) < rush_obj.limit:
-			msg += f'{rush_obj.limit-len(rush_obj.list)} cycle(s) missing.\n'
+		msg += f'**__{event_list_obj.name[0]} {event_list_obj.parent.event_name}__** {event_list_obj.emoji}\n'
+		for event_obj in event_list_obj.list:
+			msg += f'<t:{round(event_obj.next.timestamp())}:d> <t:{round(event_obj.next.timestamp())}:t> (<t:{round(event_obj.next.timestamp())}:R>)\n'
+		if len(event_list_obj.list) < event_list_obj.limit:
+			msg += f'{event_list_obj.limit-len(event_list_obj.list)} cycle(s) missing.\n'
 	await ctx.send(msg)
 
 #show next rush
-@bot.command(name = 'nextrush')
-async def nextrush(ctx):
+@bot.command(name = 'next')
+async def next(ctx):
 	update()
-	if bot.upcoming_rush == []:
-		await ctx.send(f'There are no rushes recorded, please add the rush cycles with !set and !add.')
+	if bot.upcoming_events == []:
+		await ctx.send(f'There are no events recorded, please add the event cycles with !set and !add.')
 		return
-	rush = bot.upcoming_rush[0]
-	msg = f"The next rush is {rush.name} Rush {rush.emoji} at {rush.next.strftime('%d/%m/%y %A %H:%M')} (time in UTC)."
+	upcoming_events = flatten(bot.upcoming_events)
+	upcoming_events.sort(key=lambda x:x.next)
+	event_obj = upcoming_events[0]
+	msg = f"The next {event_obj.parent.parent.event_name} is {event_obj.name} {event_obj.parent.parent.event_name} {event_obj.emoji} at <t:{round(event_obj.next.timestamp())}:d> <t:{round(event_obj.next.timestamp())}:t> (<t:{round(event_obj.next.timestamp())}:R>)."
 	await ctx.send(msg)
 
 #showing rushes in next 7 days
@@ -367,18 +347,13 @@ async def nextrush(ctx):
 async def nextweek(ctx):
 	update()
 	now = datetime.datetime.now(datetime.timezone.utc)
-	msg = "Rushes occuring in the next 7 days. All times displayed in your local time.\n"
-	#show xp rush
-	msg += f"**__XP Rush__**\n"
-	for rush in bot.upcoming_xp_rush:
-		if rush.next - now <= datetime.timedelta(days = 7):
-			msg += f'**{rush.name} Rush** {rush.emoji}: <t:{round(rush.next.timestamp())}:t> (<t:{round(rush.next.timestamp())}:R>)\n'
-	msg += '\n'
-	#show resource rush
-	msg += f"**__Resource Rush__**\n"
-	for rush in bot.upcoming_resource_rush:
-		if rush.next - now <= datetime.timedelta(days = 7):
-			msg += f'**{rush.name} Rush** {rush.emoji}: <t:{round(rush.next.timestamp())}:t> (<t:{round(rush.next.timestamp())}:R>)\n'
+	msg = "Events occuring in the next 7 days. All times displayed in your local time.\n"
+	for event_type_obj in bot.event_types:
+		msg += f'**__{event_type_obj.name} {event_type_obj.event_name}__**\n'
+		for event_obj in flatten(bot.upcoming_events):
+			if (event_obj.parent.parent == event_type_obj) and (event_obj.next - now <= datetime.timedelta(days = 7)): 
+				msg += f'**{event_obj.name} {event_type_obj.event_name}** {event_obj.emoji}: <t:{round(event_obj.next.timestamp())}:d> <t:{round(event_obj.next.timestamp())}:t> (<t:{round(event_obj.next.timestamp())}:R>)\n'
+		msg += '\n'
 	await ctx.send(msg)
 
 #showing upcoming rushes today
@@ -387,14 +362,14 @@ async def today(ctx):
 	#show xp rush
 	update()
 	now = datetime.datetime.now(datetime.timezone.utc)
-	msg = "Rushes occuring in the next 24 hours. All times displayed in your local time.\n"
+	msg = "Events occuring in the next 24 hours. All times displayed in your local time.\n"
 	count = 0
-	for rush in bot.upcoming_rush:
-		if rush.next - now <= datetime.timedelta(days = 1):
-			msg += f'**{rush.name} Rush** {rush.emoji}: <t:{round(rush.next.timestamp())}:t> (<t:{round(rush.next.timestamp())}:R>)\n'
+	for event_obj in flatten(bot.upcoming_events):
+		if event_obj.next - now <= datetime.timedelta(days = 1):
+			msg += f'**{event_obj.name} {event_obj.parent.parent.event_name}** {event_obj.emoji}: <t:{round(event_obj.next.timestamp())}:t> (<t:{round(event_obj.next.timestamp())}:R>)\n'
 			count += 1
 	if count == 0:
-		msg += f'There are no more upcoming rushes today.'
+		msg += f'There are no more upcoming events today.'
 	await ctx.send(msg)
 
 #set up announcement
@@ -403,7 +378,6 @@ async def announcement(ctx, *args):
 	if len(args) == 0: #no argument
 		await ctx.send(f'Sorry, an argument is required for this command.')
 		return
-	print(bot.announcement)
 	if args[0] == "off":
 		if (ctx.channel == bot.announcement_channel) and bot.announcement: #turning off
 			bot.announcement = False
@@ -430,23 +404,23 @@ async def announcement(ctx, *args):
 		if msg.content in ["Yes", "yes"]:
 			bot.announcement_time = hours
 			reset_announced()
-			await ctx.send(f'Rushes will be announced {hours} hours in advance.')
+			await ctx.send(f'Events will be announced {hours} hours in advance.')
 	else:
 		bot.announcement = True
 		bot.announcement_channel = ctx.channel
 		bot.announcement_time = hours
-		await ctx.send(f'Rushes will be announced {hours} hours in advance.')
+		await ctx.send(f'Events will be announced {hours} hours in advance.')
 		now = datetime.datetime.now(datetime.timezone.utc)
 		delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
 		await asyncio.sleep(delay)
 		while bot.announcement: #need to add break
 			update()
 			now = datetime.datetime.now(datetime.timezone.utc)
-			for rush in bot.upcoming_rush:
-				if (rush.next - now <= datetime.timedelta(hours = bot.announcement_time)) and (not rush.reminder):
+			for event_obj in flatten(bot.upcoming_events):
+				if (event_obj.next - now <= datetime.timedelta(hours = bot.announcement_time)) and (not event_obj.reminder):
 					await bot.wait_until_ready()
-					await bot.announcement_channel.send(f"{rush.name} Rush {rush.emoji} at <t:{round(rush.next.timestamp())}:t> (approx. <t:{round(rush.next.timestamp())}:R>).")
-					rush.reminder = True
+					await bot.announcement_channel.send(f"{event_obj.name} {event_obj.parent.parent.event_name} {event_obj.emoji} at <t:{round(event_obj.next.timestamp())}:t> (approx. <t:{round(event_obj.next.timestamp())}:R>).")
+					event_obj.reminder = True
 			delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
 			await asyncio.sleep(delay)
 
@@ -454,13 +428,12 @@ async def announcement(ctx, *args):
 async def send_list(channel):
 	await channel.purge()
 	msg = "All times in your local time.\n"
-	msg += f'**__XP Rush__**\n'
-	for rush in bot.upcoming_xp_rush:
-		msg += f'**{rush.name} Rush** {rush.emoji}: <t:{round(rush.next.timestamp())}:F>\n'
-	msg += f'\n'
-	msg += f'**__Resource Rush__**\n'
-	for rush in bot.upcoming_resource_rush:
-		msg += f'**{rush.name} Rush** {rush.emoji}: <t:{round(rush.next.timestamp())}:F>\n'
+	for event_type_obj in bot.event_types:
+		msg += f'**__{event_type_obj.name} {event_type_obj.event_name}__**\n'
+		for event_obj in flatten(bot.upcoming_events):
+			if event_obj.parent.parent == event_type_obj: 
+				msg += f'**{event_obj.name} {event_type_obj.event_name}** {event_obj.emoji}: <t:{round(event_obj.next.timestamp())}:F>\n'
+		msg += '\n'
 	await channel.send(msg)
 
 #set up event list
@@ -499,15 +472,15 @@ async def listevents(ctx, *args):
 		await ctx.send(f'Event listing is turned on in this channel.')
 		now = datetime.datetime.now(datetime.timezone.utc)
 		delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
-		rush_times = [rush.next for rush in bot.upcoming_rush]
+		event_times = [event_obj.next for event_obj in flatten(bot.upcoming_events)]
 		await send_list(bot.list_events_channel)
 		await asyncio.sleep(delay)
 		while bot.list_events: #need to add break
 			update()
-			new_rush_times = [rush.next for rush in bot.upcoming_rush]
-			if new_rush_times != rush_times:
+			new_event_times = [event_obj.next for event_obj in flatten(bot.upcoming_events)]
+			if new_event_times != event_times:
 				await send_list(bot.list_events_channel)
-				rush_times = new_rush_times
+				event_times = new_event_times
 			now = datetime.datetime.now(datetime.timezone.utc)
 			delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
 			await asyncio.sleep(delay)
@@ -518,25 +491,35 @@ async def listevents(ctx, *args):
 #reset bot
 @bot.command(name = 'reset')
 async def reset(ctx):
-	await ctx.send(f'Are you sure you want to reset the rush schedule? All recorded rush instance and announcement setups will be deleted. (yes/no)')
+	await ctx.send(f'Are you sure you want to reset the event schedule? All recorded event instance and announcement setups will be deleted. (yes/no)')
 	msg = await bot.wait_for('message', timeout = 60)
 	if msg.content in ["Yes", "yes"]:
 		initialize()
-		await ctx.send(f'The rush scheudle has been reset.')
+		await ctx.send(f'The event schedule has been reset.')
 	update()
+
+#if command is not found
+@bot.event
+async def on_command_error(ctx, error):
+	if isinstance(error, commands.CommandNotFound):
+		await ctx.send("This command is not recognized. Please use !help for command formatting.")  
+	elif isinstance(error, commands.MissingRequiredArgument):
+		await ctx.send("An argument is missing in this command. Please use !help for command formatting.")
+	else:
+		await ctx.send("An error occured with the command. Please contact the admins.")
 
 #help
 @bot.command(name = 'help')
 async def help(ctx):
 	msg = f'Here are the possible commands and their respective formatting for this bot.\n'
-	msg += f'**__!set__**:\nset rush intervals.\nFormat !set [xp/resource] [day-hours].\n'
-	msg += f'**__!add__**:\nadd new rush cycle. Time in UTC.\nFormat !add [rush name] [dd/mm/yy HH:MM].\n'
-	msg += f'**__!modify__**:\nmodify existing rush cycle. Time in UTC.\nFormat !modify [rush name]. \n'
-	msg += f'**__!status__**:\nshow status of recorded rushes, including last occurence of each rush. Time in UTC.\nFormat !status.\n'
-	msg += f'**__!when__**:\nquery next occurence of specific or all rushes. Time in UTC.\nFormat !when [rush name/all]. \n'
-	msg += f'**__!nextrush__**:\nshow when is the next rush. Time in UTC.\nFormat !nextrush. \n'
-	msg += f'**__!nextweek__**:\nshow all rushes in the next 7 days. Time in UTC.\nFormat !nextweek.\n'
-	msg += f'**__!today__**:\nshow all upcoming rushes within today. Time in UTC.\nFormat !today.\n'
+	msg += f'**__!set__**:\nset event intervals.\nFormat !set [{"/".join([event_type_obj.name for event_type_obj in bot.event_types])}] [day-hours].\n'
+	msg += f'**__!add__**:\nadd new event cycle. Time in UTC.\nFormat !add [event name] [dd/mm/yy HH:MM].\n'
+	msg += f'**__!modify__**:\nmodify existing event cycle. Time in UTC.\nFormat !modify [event name]. \n'
+	msg += f'**__!status__**:\nshow status of recorded events, including last occurence of each event. Time in UTC.\nFormat !status.\n'
+	msg += f'**__!when__**:\nquery next occurence of specific or all events. Local time displayed.\nFormat !when [event name/all]. \n'
+	msg += f'**__!next__**:\nshow when is the next event. Local time displayed.\nFormat !next. \n'
+	msg += f'**__!nextweek__**:\nshow all events in the next 7 days. Local time displayed..\nFormat !nextweek.\n'
+	msg += f'**__!today__**:\nshow all upcoming events within the next 24 hours. Local time displayed.\nFormat !today.\n'
 	msg += f'**__!announcement__**:\nset up rush announcement in channel.\nFormat !announcement [number of hours in advance for announcement].\nFormat !announcement off to turn announcements off.\n'
 	msg += f'**__!listevents__**:\nset up dynamic event calendar in channel.\nFormat !listevents.\nFormat !listevents off to turn event listing off.\n'
 	msg += f'**__!reset__**:\nclear all recorded data and announcements.\n'
