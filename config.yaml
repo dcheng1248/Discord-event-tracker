@@ -1,0 +1,42 @@
+- name: "XP"
+  event_name: "Rush"
+  cycle: null
+  list:
+    - names: ['Fire','fire','Red','red']
+      emoji: '<:Red:1005425349988982886>'
+      limit: 2
+    - names: ['Earth','earth','Green','green']
+      emoji: '<:Green:1005425336080683112>'
+      limit: 2
+    - names: ['Sea','sea','Blue','blue']
+      emoji: '<:Blue:1005425329260728351>'
+      limit: 2
+    - names: ['Sun','sun','Light','light']
+      emoji: '<:Light:1005425342082715712>'
+      limit: 2
+    - names: ['Moon','moon','Dark','dark']
+      emoji: '<:Dark:1005425330342875207>'
+      limit: 2
+    - names: ['Chromatic','chromatic']
+      emoji: '<:Red:1005425349988982886> <:Green:1005425336080683112> <:Blue:1005425329260728351> <:Light:1005425342082715712> <:Dark:1005425330342875207>'
+      limit: 2
+    - names: ['Rainbow','rainbow']
+      emoji: ':rainbow:'
+      limit: 2
+
+- name: "Resource"
+  event_name: "Rush"
+  cycle: null
+  list:
+    - names: ['Dragon','dragon']
+      emoji: ':dragon_face:'
+      limit: 2
+    - names: ['Gold','gold']
+      emoji: ':coin:'
+      limit: 5
+    - names: ['Talent', 'talent', 'Showdown','showdown']
+      emoji: '<:TalentRune:1005425358838968391>'
+      limit: 3
+    - names: ['Scramble','scramble']
+      emoji: '<:SilverTalentRune:1005425356137828383>'
+      limit: 1
