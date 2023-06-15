@@ -278,7 +278,7 @@ async def modify(ctx, event_name):
 		return
 	start_time = start_time.replace(tzinfo = datetime.timezone.utc)
 	event_list_obj.list[item].modify(start_time)
-	await ctx.send(f'This cycle has been modified with start time {start.content} UTC.')
+	await ctx.send(f'This cycle has been modified with start time {start} UTC.')
 	update()
 
 #showing recorded status
