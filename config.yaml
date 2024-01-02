@@ -40,3 +40,6 @@
     - names: ['Scramble','scramble']
       emoji: '<:SilverTalentRune:1005425356137828383>'
       limit: 1
+    - names: ['Pet', 'pet']
+      emoji: '<:Druid:1005425331655692349>'
+      limit: 2
