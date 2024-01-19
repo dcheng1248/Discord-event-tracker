@@ -4,6 +4,8 @@ This is an event tracker bot for event scheduling and reminders in discord. Curr
 
 If you would like to use or modify the bot for your own purposes, you are free to do so under the terms of GNU General Public License v3.0. You will need to set up your own discord application and host server for the bot.
 
+Feel free to submit a issue or a pull request if you have any suggestions for improvement.
+
 ## Setup
 All event configurations can be set up in the config.yaml file. An example yaml file is provided in the repo. 
 
