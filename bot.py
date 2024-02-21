@@ -171,7 +171,10 @@ async def on_ready():
 	print(f'{bot.user} has connected to Discord!')
 	initialize()
 	for guild in bot.guilds:
-		channel = guild.system_channel
+		for channel in guild.channels:
+			if channel.name == 'rush-tracker-bot':
+				ready_channel = channel
+		channel = ready_channel if ready_channel else guild.system_channel
 	if os.path.isfile('data.pkl'):
 		unpickle_data()
 		await channel.send(f'Event tracker is online. Stored event data has been loaded. Please use !status to check the data, !announcement to reset announcements and !listevents to reset dynamic event listing. Use !reset if you wish to reset the bot.')
