@@ -177,9 +177,9 @@ async def on_ready():
 		channel = ready_channel if ready_channel else guild.system_channel
 	if os.path.isfile('data.pkl'):
 		unpickle_data()
-		await channel.send("Event tracker is online. Stored event data has been loaded. Please use !status to check the data, !announcement to reset announcements and !listevents to reset dynamic event listing. Use !reset if you wish to reset the bot.")
+		await channel.send(f'Event tracker is online. Stored event data has been loaded. Please use !status to check the data, !announcement to reset announcements and !listevents to reset dynamic event listing. Use !reset if you wish to reset the bot.')
 	else:
-		await channel.send('Event tracker is online. No stored event data is found. Please add the event cycles and rushes.')
+		await channel.send(f'Event tracker is online. No stored event data is found. Please add the event cycles and rushes.')
 
 #set rush intervals
 @bot.command(name = 'set')
