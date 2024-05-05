@@ -299,17 +299,20 @@ async def remind(ctx, *args):
 				bot.reminder_time = bot.rushes[-1].time
 			else:
 				bot.reminder_time = min(bot.rushes[-1].time, bot.heroics[-1].time)
-		print(bot.reminder_time)
 		now = datetime.datetime.now(datetime.timezone.utc)
 		delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
 		await asyncio.sleep(delay)
-		while True: 
+		while bot.reminder_time > now: 
 			now = datetime.datetime.now(datetime.timezone.utc)
 			if (bot.reminder_time - now <= datetime.timedelta(hours)):
 				await bot.wait_until_ready()
 				await ctx.send(f"{ctx.message.author.mention} the last rush or heroic is in {hours} hours, please update the list.")
-			delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
-			await asyncio.sleep(delay)
+				delay = (bot.reminder_time - now).total_seconds()
+				await asyncio.sleep(delay)
+			else:
+				delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
+				await asyncio.sleep(delay)
+		await ctx.send(f'{ctx.message.author.mention}, your reminder is now expired. Please it up again if you want to be reminded.')
 
 #reset bot
 @bot.command(name = 'reset')
