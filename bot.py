@@ -127,13 +127,11 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
-    # Manually get the invocation context from the message
-    ctx = await bot.get_context(message)
+	# Manually get the invocation context from the message
+	ctx = await bot.get_context(message)
 
-    # Verify that the context has a command and can be used
-    if ctx.valid:
-        # Invoke the command using the earlier defined bot/client/command
-        await bot.invoke(ctx)
+	# Invoke the command using the earlier defined bot/client/command
+	await bot.invoke(ctx)
 
 @bot.command(name = 'add')
 async def add(ctx, *, args):
@@ -335,7 +333,7 @@ async def reset(ctx):
 	update()
 
 #if command is not found
-#@bot.event
+@bot.event
 async def on_command_error(ctx, error):
 	if isinstance(error, commands.CommandNotFound):
 		await ctx.send("This command is not recognized. Please use !help for command formatting.")  
