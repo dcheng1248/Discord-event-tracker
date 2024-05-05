@@ -336,13 +336,13 @@ async def reset(ctx):
 
 #if command is not found
 #@bot.event
-"""async def on_command_error(ctx, error):
+async def on_command_error(ctx, error):
 	if isinstance(error, commands.CommandNotFound):
 		await ctx.send("This command is not recognized. Please use !help for command formatting.")  
 	elif isinstance(error, commands.MissingRequiredArgument):
 		await ctx.send("An argument is missing in this command. Please use !help for command formatting.")
 	else:
-		await ctx.send("An error occured with the command. Please contact the admins.")"""
+		await ctx.send("An error occured with the command. Please contact the admins.")
 
 #help
 @bot.command(name = 'help')
