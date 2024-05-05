@@ -125,6 +125,16 @@ async def on_ready():
 	else:
 		await channel.send(f'Event tracker is online. No stored event data is found. Please add events.')
 
+@bot.event
+async def on_message(message):
+    # Manually get the invocation context from the message
+    ctx = await bot.get_context(message)
+
+    # Verify that the context has a command and can be used
+    if ctx.valid:
+        # Invoke the command using the earlier defined bot/client/command
+        await bot.invoke(ctx)
+
 @bot.command(name = 'add')
 async def add(ctx, *, args):
 	#parse argument
