@@ -312,7 +312,7 @@ async def remind(ctx, *args):
 		await asyncio.sleep(delay)
 		while bot.reminder_time > now: 
 			now = datetime.datetime.now(datetime.timezone.utc)
-			if (bot.reminder_time - now <= datetime.timedelta(hours)):
+			if (bot.reminder_time - now <= datetime.timedelta(hours=hours)):
 				await bot.wait_until_ready()
 				await ctx.send(f"{ctx.message.author.mention} the last rush or heroic is in {hours} hours, please update the list.")
 				delay = (bot.reminder_time - now).total_seconds()
