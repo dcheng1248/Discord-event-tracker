@@ -79,9 +79,10 @@ def unpickle_data():
 	with open('data.pkl', 'rb') as f:
 		pickle_list = pickle.load(f)
 
-	bot.rushes = pickle_list[0:1]
-	bot.heroics = pickle_list[1:2]
-	bot.reminders = pickle_list[2:3]
+	bot.rushes = pickle_list[0]
+	bot.heroics = pickle_list[1]
+	if len(pickle_list) > 2:
+		bot.reminders = pickle_list[2]
 
 	reset_announced()
 	update()
