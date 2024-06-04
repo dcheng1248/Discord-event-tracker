@@ -336,7 +336,7 @@ async def remind(ctx, *args):
 	elif (len(bot.rushes) == 0 and len(bot.heroics.length) == 0):
 		await ctx.send(f'Sorry, there are no recorded rushes or heroics. Please add at least one rush or heroic.')
 		return
-	elif bot.reminders.contains(reminder(mention=ctx.message.author.mention)):
+	elif reminder(mention=ctx.message.author.mention) in bot.reminders:
 		if bot.reminders[bot.reminders.index(reminder(mention=ctx.message.author.mention))].hours == int(args[0]):
 			await ctx.send(f'{ctx.message.author.mention} You already have a reminder set for {args[0]} hours')
 		else:
