@@ -336,12 +336,23 @@ async def remind(ctx, *args):
 	elif (len(bot.rushes) == 0 and len(bot.heroics.length) == 0):
 		await ctx.send(f'Sorry, there are no recorded rushes or heroics. Please add at least one rush or heroic.')
 		return
+	elif int(args[0]) == 0:
+		if reminder(mention=ctx.message.author.mention) in bot.reminders:
+			del bot.reminders[bot.reminders.index(reminder(mention=ctx.message.author.mention))]
+			await ctx.send('Your reminder has been deleted')
+		else:
+			await ctx.send('You do not have a scheduled reminder')
 	elif reminder(mention=ctx.message.author.mention) in bot.reminders:
 		if bot.reminders[bot.reminders.index(reminder(mention=ctx.message.author.mention))].hours == int(args[0]):
-			await ctx.send(f'{ctx.message.author.mention} You already have a reminder set for {args[0]} hours')
+			if not bot.reminders[bot.reminders.index(reminder(mention=ctx.message.author.mention))].enabled:
+				bot.reminders[bot.reminders.index(reminder(mention=ctx.message.author.mention))].enabled = True
+				await ctx.send(f'You already have a reminder set for {args[0]} hours. Re-enabled it')
+			else:
+				await ctx.send(f'You already have an enabled reminder set for {args[0]} hours')
 		else:
 			bot.reminders[bot.reminders.index(reminder(mention=ctx.message.author.mention))].hours = int(args[0])
-			await ctx.send(f'{ctx.message.author.mention} Your reminder has been updated to {args[0]} hours')
+			bot.reminders[bot.reminders.index(reminder(mention=ctx.message.author.mention))].enabled = True
+			await ctx.send(f'Your reminder has been updated to {args[0]} hours')
 	else:
 		user = reminder(
 			mention=ctx.message.author.mention,
@@ -381,7 +392,7 @@ async def help(ctx):
 	msg += f'**__!next__**:\nshow when is the next rush. Local time displayed.\nFormat !next. \n'
 	msg += f'**__!announcement__**:\nset up rush announcement in channel.\nFormat !announcement [number of hours in advance for announcement].\nFormat !announcement off to turn announcements off.\n'
 	msg += f'**__!listevents__**:\nset up dynamic event calendar in channel.\nFormat !listevents.\nFormat !listevents off to turn event listing off.\n'
-	msg += f'**__!remindme__**:\nget a reminder when rush schedule is almost empty. Specify the number of hours before the last event\nFormat !remindme [##]'
+	msg += f'**__!remindme__**:\nget a reminder when rush schedule is almost empty. Specify the number of hours before the last event\nFormat !remindme [##]\nFormat !remindme 0 to turn event listing off.\n'
 	msg += f'**__!reset__**:\nclear all recorded data and announcements.\n'
 	await ctx.send(msg)
 
