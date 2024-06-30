@@ -2,7 +2,7 @@
 import os
 import discord
 import datetime
-from discord.ext import commands
+from discord.ext import commands, tasks
 import asyncio
 import pickle
 from dotenv import load_dotenv
@@ -26,6 +26,18 @@ class event:
 		else:
 			self.next = new_start
 
+class reminder:
+	def __init__(self, mention, hours = None, channel = None, enabled = None):
+		self.mention = mention
+		self.hours = hours
+		self.channel = channel
+		self.enabled = enabled
+
+	def __eq__(self, value: object):
+		if isinstance(value, reminder):
+			return self.mention == value.mention
+		return False
+
 def get_day_hour(timedelta):
 	return timedelta.days, timedelta.seconds//3600
 
@@ -35,7 +47,15 @@ def flatten(nested_list):
 
 def pickle_data():
 	#save data into pickle file
-	pickle_list = [bot.rushes, bot.heroics]
+	pickle_list = {
+		'Rushes': bot.rushes,
+		'Heroics': bot.heroics,
+		'Reminders': bot.reminders,
+		'Events': bot.list_events,
+		'Events Channel': bot.list_events_channel.id if bot.list_events_channel else None,
+		'Announcement': bot.announcement,
+		'Announcement Channel': bot.announcement_channel.id if bot.announcement_channel else None
+	}
 	with open('data.pkl', 'wb') as f:
 		pickle.dump(pickle_list, f)
 
@@ -69,18 +89,32 @@ def update():
 	else:
 		bot.reminder_time = min(bot.rushes[-1].time, bot.heroics[-1].time)
 
+	#enable reminders if needed
+	for user in bot.reminders:
+		if not user.enabled:
+			if (bot.reminder_time - now > datetime.timedelta(hours=user.hours)):
+				user.enabled = True
+
 	pickle_data()
 
 def reset_announced():
 	for event in bot.rushes:
 		event.reminder = False
 
-def unpickle_data():
+async def unpickle_data():
 	with open('data.pkl', 'rb') as f:
 		pickle_list = pickle.load(f)
-
-	bot.rushes = pickle_list[0]
-	bot.heroics = pickle_list[1]
+	if type(pickle_list) is dict:
+		bot.rushes = pickle_list.get('Rushes')
+		bot.heroics = pickle_list.get('Heroics')
+		bot.reminders = pickle_list.get('Reminders')
+		bot.list_events = pickle_list.get('Events')
+		bot.list_events_channel = await bot.fetch_channel(pickle_list.get('Events Channel')) if pickle_list.get('Events Channel') else None
+		bot.announcement = pickle_list.get('Announcement')
+		bot.announcement_channel = await bot.fetch_channel(pickle_list.get('Announcement Channel')) if pickle_list.get('Announcement Channel') else None
+	else:
+		bot.rushes = pickle_list[0]
+		bot.heroics = pickle_list[1]
 
 	reset_announced()
 	update()
@@ -95,6 +129,8 @@ def initialize():
 	#initialize rush and heroic lists
 	bot.rushes = []
 	bot.heroics = []
+	bot.posted_rushes = []
+	bot.posted_heroics = []
 
 	#tracking channels with announcements
 	bot.announcement = False
@@ -107,6 +143,7 @@ def initialize():
 	bot.list_events_channel = None
 
 	#reminders
+	bot.reminders = []
 	bot.reminder_time = None
 
 @bot.event
@@ -120,10 +157,22 @@ async def on_ready():
 				ready_channel = channel
 		channel = ready_channel if ready_channel else guild.system_channel
 	if os.path.isfile('data.pkl'):
-		unpickle_data()
-		await channel.send(f'Event tracker is online. Stored event data has been loaded. Please use !status to check the data, !announcement to reset announcements, !listevents to reset dynamic event listing and !remindme to set up reminders. Use !reset if you wish to reset the bot.')
+		await unpickle_data()
+		msg = 'Event tracker is online.\n\n'
+		msg += f'Event listing channel is set to {bot.list_events_channel.mention if bot.list_events_channel else None}\n'
+		msg += f'Announcement channel set to {bot.announcement_channel.mention if bot.announcement_channel else None}\n\n'
+		msg += 'Please use !status to check the data or !reset if you wish to reset the bot.'
+		await channel.send(msg)
 	else:
 		await channel.send(f'Event tracker is online. No stored event data is found. Please add events.')
+
+	#Ensure loops are running
+	if not announcement_loop.is_running():
+		announcement_loop.start()
+	if not listevent_loop.is_running():
+		listevent_loop.start()
+	if not reminder_loop.is_running():
+		reminder_loop.start()
 
 @bot.event
 async def on_message(message):
@@ -132,6 +181,54 @@ async def on_message(message):
 
 	# Invoke the command using the earlier defined bot/client/command
 	await bot.invoke(ctx)
+
+@tasks.loop(time=[datetime.time(hour=x) for x in range(0, 24)], reconnect=True)
+async def announcement_loop():
+	# Send announcements to the specified channel
+	update()
+	if bot.announcement_channel:
+		now = datetime.datetime.now(datetime.timezone.utc)
+		# Send to announcement channel if it is time and event hasn't already been posted
+		for event in bot.rushes:
+			if (event.time - now <= datetime.timedelta(hours = bot.rush_announcement_time) and (not event.reminder)):
+				await bot.wait_until_ready()
+				await bot.announcement_channel.send(f"{event.name} at <t:{round(event.time.timestamp())}:t> (approx. <t:{round(event.time.timestamp())}:R>).")
+				event.reminder = True
+		for event in bot.heroics:
+			if (event.time - now <= datetime.timedelta(hours = bot.heroic_announcement_time) and (not event.reminder)):
+				await bot.wait_until_ready()
+				await bot.announcement_channel.send(f"{event.name} at <t:{round(event.time.timestamp())}:t> (approx. <t:{round(event.time.timestamp())}:R>).")
+				event.reminder = True
+
+@tasks.loop(time=[datetime.time(hour=x) for x in range(0, 24)], reconnect=True)
+async def listevent_loop():
+	# Send event list to specified channel
+	update()
+	if bot.list_events_channel:
+		# Get current event list
+		rush_list = [event.time for event in bot.rushes]
+		heroic_list = [event.time for event in bot.heroics]
+		# Compare to previously posted list and update if needed
+		if (bot.posted_rushes != rush_list or bot.posted_heroics != heroic_list):
+			await send_list(bot.list_events_channel)
+			# Update posted list
+			bot.posted_rushes = rush_list
+			bot.posted_heroics = heroic_list
+
+@tasks.loop(time=[datetime.time(hour=x) for x in range(0, 24)], reconnect=True)
+async def reminder_loop():
+	# Send reminders to users that are signed up for them
+	update()
+	if bot.reminder_time:
+		now = datetime.datetime.now(datetime.timezone.utc)
+		for user in bot.reminders:
+			# Remind only if it is time and reminder hasn't already been sent
+			if user.enabled:
+				if (bot.reminder_time - now <= datetime.timedelta(hours=user.hours)):
+					await bot.wait_until_ready()
+					await user.channel.send(f"{user.mention} the last rush or heroic is in {user.hours} hours, please update the list.")
+					# Prevent reminders for this user until events are updated
+					user.enabled = False
 
 @bot.command(name = 'add')
 async def add(ctx, *, args):
@@ -164,7 +261,9 @@ async def status(ctx):
 	msg += "\n"
 	msg += "**Heroics**\n"
 	for event in bot.heroics:
-		msg += f'{event.name} at {event.time.strftime('%d/%m/%y %A %H:%M')}\n'
+		msg += f'{event.name} at {event.time.strftime('%d/%m/%y %A %H:%M')}\n\n'
+	msg += f'Event listing channel is set to {bot.list_events_channel.mention if bot.list_events_channel else None}\n'
+	msg += f'Announcement channel set to {bot.announcement_channel.mention if bot.announcement_channel else None}'
 	await ctx.send(msg)
 
 #show next rush
@@ -185,29 +284,14 @@ async def announcement(ctx, *args):
 		bot.announcement = True
 		bot.announcement_channel = ctx.channel
 		await ctx.send(f'Rushes will be announced 6 hours in advance, heroics will be announced 1 day in advance.')
-		now = datetime.datetime.now(datetime.timezone.utc)
-		delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
-		await asyncio.sleep(delay)
-		while bot.announcement: 
-			update()
-			now = datetime.datetime.now(datetime.timezone.utc)
-			for event in bot.rushes:
-				if (event.time - now <= datetime.timedelta(hours = bot.rush_announcement_time) and (not event.reminder)):
-					await bot.wait_until_ready()
-					await bot.announcement_channel.send(f"{event.name} at <t:{round(event.time.timestamp())}:t> (approx. <t:{round(event.time.timestamp())}:R>).")
-					event.reminder = True
-			for event in bot.heroics:
-				if (event.time - now <= datetime.timedelta(hours = bot.heroic_announcement_time) and (not event.reminder)):
-					await bot.wait_until_ready()
-					await bot.announcement_channel.send(f"{event.name} at <t:{round(event.time.timestamp())}:t> (approx. <t:{round(event.time.timestamp())}:R>).")
-					event.reminder = True
-			delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
-			await asyncio.sleep(delay)
-	elif args[0] == "off":
+		update()
+		return
+	if args[0] == "off":
 		if (ctx.channel == bot.announcement_channel) and bot.announcement: #turning off
 			bot.announcement = False
 			bot.announcement_channel = None
 			await ctx.send(f'Announcements is turned off in this channel.')
+			update()
 			return
 		elif bot.announcement: #off command in wrong channel
 			await ctx.send(f'Announcements was turned on at {bot.announcement_channel.mention}. Please turn off announcements there.')
@@ -242,6 +326,7 @@ async def listevents(ctx, *args):
 				bot.list_events = False
 				bot.list_events_channel = None
 				await ctx.send(f'Event listing is turned off in this channel.')
+				update()
 				return
 			elif bot.list_events: #off command in wrong channel
 				await ctx.send(f'Event listing was turned on at {bot.list_events_channel.mention}. Please turn off the event listing there.')
@@ -266,23 +351,10 @@ async def listevents(ctx, *args):
 		bot.list_events = True
 		bot.list_events_channel = ctx.channel
 		await ctx.send(f'Event listing is turned on in this channel.')
-		now = datetime.datetime.now(datetime.timezone.utc)
-		delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
-		rushes = [event.time for event in bot.rushes]
-		heroics = [event.time for event in bot.heroics]
+		bot.posted_rushes = [event.time for event in bot.rushes]
+		bot.posted_heroics = [event.time for event in bot.heroics]
 		await send_list(bot.list_events_channel)
-		await asyncio.sleep(delay)
-		while bot.list_events: #need to add break
-			update()
-			new_rushes = [event.time for event in bot.rushes]
-			new_heroics = [event.time for event in bot.heroics]
-			if (rushes != new_rushes or heroics != new_heroics):
-				await send_list(bot.list_events_channel)
-				rushes = new_rushes
-				heroics = new_heroics
-			now = datetime.datetime.now(datetime.timezone.utc)
-			delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
-			await asyncio.sleep(delay)
+		update()
 	else:
 		await ctx.send(f'Event listing has not been turned on.')
 	return
@@ -296,31 +368,33 @@ async def remind(ctx, *args):
 	elif (len(bot.rushes) == 0 and len(bot.heroics.length) == 0):
 		await ctx.send(f'Sorry, there are no recorded rushes or heroics. Please add at least one rush or heroic.')
 		return
+	elif int(args[0]) == 0:
+		if reminder(mention=ctx.message.author.mention) in bot.reminders:
+			del bot.reminders[bot.reminders.index(reminder(mention=ctx.message.author.mention))]
+			await ctx.send('Your reminder has been deleted')
+		else:
+			await ctx.send('You do not have a scheduled reminder')
+	elif reminder(mention=ctx.message.author.mention) in bot.reminders:
+		if bot.reminders[bot.reminders.index(reminder(mention=ctx.message.author.mention))].hours == int(args[0]):
+			if not bot.reminders[bot.reminders.index(reminder(mention=ctx.message.author.mention))].enabled:
+				bot.reminders[bot.reminders.index(reminder(mention=ctx.message.author.mention))].enabled = True
+				await ctx.send(f'You already have a reminder set for {args[0]} hours. Re-enabled it')
+			else:
+				await ctx.send(f'You already have an enabled reminder set for {args[0]} hours')
+		else:
+			bot.reminders[bot.reminders.index(reminder(mention=ctx.message.author.mention))].hours = int(args[0])
+			bot.reminders[bot.reminders.index(reminder(mention=ctx.message.author.mention))].enabled = True
+			await ctx.send(f'Your reminder has been updated to {args[0]} hours')
 	else:
-		hours = int(args[0])
-		await ctx.send(f'You will be reminded {hours} hours in advance.')
-		update()
-		if bot.reminder_time == None:
-			if (len(bot.rushes) == 0):
-				bot.reminder_time = bot.heroics[-1].time
-			elif (len(bot.heroics) == 0):
-				bot.reminder_time = bot.rushes[-1].time
-			else:
-				bot.reminder_time = min(bot.rushes[-1].time, bot.heroics[-1].time)
-		now = datetime.datetime.now(datetime.timezone.utc)
-		delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
-		await asyncio.sleep(delay)
-		while bot.reminder_time > now: 
-			now = datetime.datetime.now(datetime.timezone.utc)
-			if (bot.reminder_time - now <= datetime.timedelta(hours=hours)):
-				await bot.wait_until_ready()
-				await ctx.send(f"{ctx.message.author.mention} the last rush or heroic is in {hours} hours, please update the list.")
-				delay = (bot.reminder_time - now).total_seconds()
-				await asyncio.sleep(delay)
-			else:
-				delay = (now.replace(microsecond = 0, second = 0, minute = 0) + datetime.timedelta(seconds = 3600) - now).total_seconds()
-				await asyncio.sleep(delay)
-		await ctx.send(f'{ctx.message.author.mention}, your reminder is now expired. Please it up again if you want to be reminded.')
+		user = reminder(
+			mention=ctx.message.author.mention,
+			hours=int(args[0]),
+			channel=ctx.channel,
+			enabled= True
+		)
+		bot.reminders.append(user)
+		await ctx.send(f'You will be reminded {user.hours} hours in advance.')
+	update()
 
 #reset bot
 @bot.command(name = 'reset')
@@ -351,6 +425,7 @@ async def help(ctx):
 	msg += f'**__!next__**:\nshow when is the next rush. Local time displayed.\nFormat !next. \n'
 	msg += f'**__!announcement__**:\nset up rush announcement in channel.\nFormat !announcement [number of hours in advance for announcement].\nFormat !announcement off to turn announcements off.\n'
 	msg += f'**__!listevents__**:\nset up dynamic event calendar in channel.\nFormat !listevents.\nFormat !listevents off to turn event listing off.\n'
+	msg += f'**__!remindme__**:\nget a reminder when rush schedule is almost empty. Specify the number of hours before the last event\nFormat !remindme [##]\nFormat !remindme 0 to turn your reminder off.\n'
 	msg += f'**__!reset__**:\nclear all recorded data and announcements.\n'
 	await ctx.send(msg)
 
