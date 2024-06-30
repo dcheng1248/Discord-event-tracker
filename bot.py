@@ -47,7 +47,15 @@ def flatten(nested_list):
 
 def pickle_data():
 	#save data into pickle file
-	pickle_list = [bot.rushes, bot.heroics, bot.reminders]
+	pickle_list = {
+		'Rushes': bot.rushes,
+		'Heroics': bot.heroics,
+		'Reminders': bot.reminders,
+		'Events': bot.list_events,
+		'Events Channel': bot.list_events_channel.id if bot.list_events_channel else None,
+		'Announcement': bot.announcement,
+		'Announcement Channel': bot.announcement_channel.id if bot.announcement_channel else None
+	}
 	with open('data.pkl', 'wb') as f:
 		pickle.dump(pickle_list, f)
 
@@ -93,14 +101,20 @@ def reset_announced():
 	for event in bot.rushes:
 		event.reminder = False
 
-def unpickle_data():
+async def unpickle_data():
 	with open('data.pkl', 'rb') as f:
 		pickle_list = pickle.load(f)
-
-	bot.rushes = pickle_list[0]
-	bot.heroics = pickle_list[1]
-	if len(pickle_list) > 2:
-		bot.reminders = pickle_list[2]
+	if type(pickle_list) is dict:
+		bot.rushes = pickle_list.get('Rushes')
+		bot.heroics = pickle_list.get('Heroics')
+		bot.reminders = pickle_list.get('Reminders')
+		bot.list_events = pickle_list.get('Events')
+		bot.list_events_channel = await bot.fetch_channel(pickle_list.get('Events Channel')) if pickle_list.get('Events Channel') else None
+		bot.announcement = pickle_list.get('Announcement')
+		bot.announcement_channel = await bot.fetch_channel(pickle_list.get('Announcement Channel')) if pickle_list.get('Announcement Channel') else None
+	else:
+		bot.rushes = pickle_list[0]
+		bot.heroics = pickle_list[1]
 
 	reset_announced()
 	update()
@@ -143,10 +157,18 @@ async def on_ready():
 				ready_channel = channel
 		channel = ready_channel if ready_channel else guild.system_channel
 	if os.path.isfile('data.pkl'):
-		unpickle_data()
-		await channel.send(f'Event tracker is online. Stored event data has been loaded. Please use !status to check the data, !announcement to reset announcements, !listevents to reset dynamic event listing and !remindme to set up reminders. Use !reset if you wish to reset the bot.')
+		await unpickle_data()
+		await channel.send(f'Event tracker is online. Event listing channel is set to {bot.list_events_channel.mention if bot.list_events_channel else None} and Announcement channel set to {bot.announcement_channel.mention if bot.announcement_channel else None} Please use !status to check the data or !reset if you wish to reset the bot.')
 	else:
 		await channel.send(f'Event tracker is online. No stored event data is found. Please add events.')
+
+	#Ensure loops are running
+	if not announcement_loop.is_running():
+		announcement_loop.start()
+	if not listevent_loop.is_running():
+		listevent_loop.start()
+	if not reminder_loop.is_running():
+		reminder_loop.start()
 
 @bot.event
 async def on_message(message):
@@ -156,7 +178,7 @@ async def on_message(message):
 	# Invoke the command using the earlier defined bot/client/command
 	await bot.invoke(ctx)
 
-@tasks.loop(time=[datetime.time(hour=x) for x in range(0, 24)])
+@tasks.loop(time=[datetime.time(hour=x) for x in range(0, 24)], reconnect=True)
 async def announcement_loop():
 	# Send announcements to the specified channel
 	update()
@@ -174,7 +196,7 @@ async def announcement_loop():
 				await bot.announcement_channel.send(f"{event.name} at <t:{round(event.time.timestamp())}:t> (approx. <t:{round(event.time.timestamp())}:R>).")
 				event.reminder = True
 
-@tasks.loop(time=[datetime.time(hour=x) for x in range(0, 24)])
+@tasks.loop(time=[datetime.time(hour=x) for x in range(0, 24)], reconnect=True)
 async def listevent_loop():
 	# Send event list to specified channel
 	update()
@@ -189,7 +211,7 @@ async def listevent_loop():
 			bot.posted_rushes = rush_list
 			bot.posted_heroics = heroic_list
 
-@tasks.loop(time=[datetime.time(hour=x) for x in range(0, 24)])
+@tasks.loop(time=[datetime.time(hour=x) for x in range(0, 24)], reconnect=True)
 async def reminder_loop():
 	# Send reminders to users that are signed up for them
 	update()
@@ -235,7 +257,8 @@ async def status(ctx):
 	msg += "\n"
 	msg += "**Heroics**\n"
 	for event in bot.heroics:
-		msg += f'{event.name} at {event.time.strftime('%d/%m/%y %A %H:%M')}\n'
+		msg += f'{event.name} at {event.time.strftime('%d/%m/%y %A %H:%M')}\n\n'
+		msg += f'Event listing channel is set to {bot.list_events_channel.mention if bot.list_events_channel else None} and Announcement channel set to {bot.announcement_channel.mention if bot.announcement_channel else None}'
 	await ctx.send(msg)
 
 #show next rush
@@ -256,12 +279,14 @@ async def announcement(ctx, *args):
 		bot.announcement = True
 		bot.announcement_channel = ctx.channel
 		await ctx.send(f'Rushes will be announced 6 hours in advance, heroics will be announced 1 day in advance.')
+		update()
 		return
 	if args[0] == "off":
 		if (ctx.channel == bot.announcement_channel) and bot.announcement: #turning off
 			bot.announcement = False
 			bot.announcement_channel = None
 			await ctx.send(f'Announcements is turned off in this channel.')
+			update()
 			return
 		elif bot.announcement: #off command in wrong channel
 			await ctx.send(f'Announcements was turned on at {bot.announcement_channel.mention}. Please turn off announcements there.')
@@ -296,6 +321,7 @@ async def listevents(ctx, *args):
 				bot.list_events = False
 				bot.list_events_channel = None
 				await ctx.send(f'Event listing is turned off in this channel.')
+				update()
 				return
 			elif bot.list_events: #off command in wrong channel
 				await ctx.send(f'Event listing was turned on at {bot.list_events_channel.mention}. Please turn off the event listing there.')
@@ -323,6 +349,7 @@ async def listevents(ctx, *args):
 		bot.posted_rushes = [event.time for event in bot.rushes]
 		bot.posted_heroics = [event.time for event in bot.heroics]
 		await send_list(bot.list_events_channel)
+		update()
 	else:
 		await ctx.send(f'Event listing has not been turned on.')
 	return
@@ -362,6 +389,7 @@ async def remind(ctx, *args):
 		)
 		bot.reminders.append(user)
 		await ctx.send(f'You will be reminded {user.hours} hours in advance.')
+	update()
 
 #reset bot
 @bot.command(name = 'reset')
