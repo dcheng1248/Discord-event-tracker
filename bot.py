@@ -158,7 +158,11 @@ async def on_ready():
 		channel = ready_channel if ready_channel else guild.system_channel
 	if os.path.isfile('data.pkl'):
 		await unpickle_data()
-		await channel.send(f'Event tracker is online. Event listing channel is set to {bot.list_events_channel.mention if bot.list_events_channel else None} and Announcement channel set to {bot.announcement_channel.mention if bot.announcement_channel else None} Please use !status to check the data or !reset if you wish to reset the bot.')
+		msg = 'Event tracker is online.\n\n'
+		msg += f'Event listing channel is set to {bot.list_events_channel.mention if bot.list_events_channel else None}\n'
+		msg += f'Announcement channel set to {bot.announcement_channel.mention if bot.announcement_channel else None}\n\n'
+		msg += 'Please use !status to check the data or !reset if you wish to reset the bot.'
+		await channel.send(msg)
 	else:
 		await channel.send(f'Event tracker is online. No stored event data is found. Please add events.')
 
@@ -258,7 +262,8 @@ async def status(ctx):
 	msg += "**Heroics**\n"
 	for event in bot.heroics:
 		msg += f'{event.name} at {event.time.strftime('%d/%m/%y %A %H:%M')}\n\n'
-		msg += f'Event listing channel is set to {bot.list_events_channel.mention if bot.list_events_channel else None} and Announcement channel set to {bot.announcement_channel.mention if bot.announcement_channel else None}'
+	msg += f'Event listing channel is set to {bot.list_events_channel.mention if bot.list_events_channel else None}\n'
+	msg += f'Announcement channel set to {bot.announcement_channel.mention if bot.announcement_channel else None}'
 	await ctx.send(msg)
 
 #show next rush
