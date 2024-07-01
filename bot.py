@@ -443,9 +443,9 @@ async def help(ctx):
 	msg += f'**__!status__**:\nshow status of recorded events, including last occurence of each event. Time in UTC.\nFormat !status.\n'
 	msg += f'**__!next__**:\nshow when is the next rush. Local time displayed.\nFormat !next. \n'
 	msg += f'**__!announcement__**:\nset up rush announcement in channel.\nFormat !announcement [number of hours in advance for announcement].\nFormat !announcement off to turn announcements off.\n'
-	msg += f'**__!listevents__**:\nset up dynamic event calendar in channel.\nFormat !listevents.\nFormat !listevents off to turn event listing off.\n'
+	msg += f'**__!listevents__**:\nset up dynamic event calendar in channel.\nFormat !listevents.\nFormat !listevents off to turn event listing off.\nFormat !listevents update to force an update to the event listing.\n'
 	msg += f'**__!remindme__**:\nget a reminder when rush schedule is almost empty. Specify the number of hours before the last event\nFormat !remindme [##]\nFormat !remindme 0 to turn your reminder off.\n'
-	msg += f'**__!reset__**:\nclear all recorded data and announcements.\n'
+	msg += f'**__!reset__**:\nclear all recorded data and announcements.\nFormat !reset to reset everything\nFormat !reset events to reset events only'
 	await ctx.send(msg)
 
 bot.run(TOKEN)
