@@ -143,15 +143,9 @@ def initialize(event_only=False):
 		bot.list_events = False
 		bot.list_events_channel = None
 
-<<<<<<< Updated upstream
-	#reminders
-	bot.reminders = []
-	bot.reminder_time = None
-=======
 		#reminders
 		bot.reminders = []
 		bot.reminder_time = None
->>>>>>> Stashed changes
 
 @bot.event
 async def on_ready():
