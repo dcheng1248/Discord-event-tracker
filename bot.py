@@ -91,23 +91,30 @@ def event_exists(list, new_event_name, new_event_time):
 			return True
 	return False
 
-def initialize():
+def initialize(event_only=False):
 	#initialize rush and heroic lists
 	bot.rushes = []
 	bot.heroics = []
 
-	#tracking channels with announcements
-	bot.announcement = False
-	bot.announcement_channel = None
-	bot.rush_announcement_time = 6
-	bot.heroic_announcement_time = 24
+	if not event_only:
+		#tracking channels with announcements
+		bot.announcement = False
+		bot.announcement_channel = None
+		bot.rush_announcement_time = 6
+		bot.heroic_announcement_time = 24
 
-	#tracking list events
-	bot.list_events = False
-	bot.list_events_channel = None
+		#tracking list events
+		bot.list_events = False
+		bot.list_events_channel = None
 
+<<<<<<< Updated upstream
 	#reminders
 	bot.reminder_time = None
+=======
+		#reminders
+		bot.reminders = []
+		bot.reminder_time = None
+>>>>>>> Stashed changes
 
 @bot.event
 async def on_ready():
@@ -324,13 +331,24 @@ async def remind(ctx, *args):
 
 #reset bot
 @bot.command(name = 'reset')
-async def reset(ctx):
-	await ctx.send(f'Are you sure you want to reset the event schedule? All recorded event instance and announcement setups will be deleted. (yes/no)')
-	msg = await bot.wait_for('message', timeout = 60)
-	if msg.content in ["Yes", "yes"]:
-		initialize()
-		await ctx.send(f'The event schedule has been reset.')
-	update()
+async def reset(ctx, *args):
+	if len(args) == 0:
+		await ctx.send(f'Are you sure you want to reset the bot data? All recorded event instance and announcement setups will be deleted. (yes/no)')
+		msg = await bot.wait_for('message', timeout = 60)
+		if msg.content in ["Yes", "yes"]:
+			initialize()
+			await ctx.send(f'The bot data has been reset.')
+		update()
+	elif args[0] == 'events':
+		await ctx.send(f'Are you sure you want to reset the event schedule? All recorded event instance and announcement setups will be retained. (yes/no)')
+		msg = await bot.wait_for('message', timeout = 60)
+		if msg.content in ["Yes", "yes"]:
+			initialize(event_only=True)
+			await ctx.send(f'The event schedule has been reset.')
+		update()
+	else:
+		await ctx.send(f'Invalid argument. Choose \"!reset\" or \"!reset events\"')
+
 
 #if command is not found
 @bot.event
