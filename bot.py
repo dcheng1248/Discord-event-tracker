@@ -226,8 +226,9 @@ async def reminder_loop():
 			# Remind only if it is time and reminder hasn't already been sent
 			if user.enabled:
 				if (bot.reminder_time - now <= datetime.timedelta(hours=user.hours)):
+					channel = bot.fetch_channel(user.channel)
 					await bot.wait_until_ready()
-					await user.channel.send(f"{user.mention} the last rush or heroic is in {user.hours} hours, please update the list.")
+					await channel.send(f"{user.mention} the last rush or heroic is in {user.hours} hours, please update the list.")
 					# Prevent reminders for this user until events are updated
 					user.enabled = False
 
@@ -397,7 +398,7 @@ async def remind(ctx, *args):
 		user = reminder(
 			mention=ctx.message.author.mention,
 			hours=int(args[0]),
-			channel=ctx.channel,
+			channel=ctx.channel.id,
 			enabled= True
 		)
 		bot.reminders.append(user)
