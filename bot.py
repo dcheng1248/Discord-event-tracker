@@ -322,7 +322,14 @@ async def send_list(channel):
 async def listevents(ctx, *args):
 	update()
 	if len(args) > 0:
-		if args[0] == "off":
+		if args[0] == "update":
+			if bot.list_events and bot.list_events_channel: #update event list channel
+				await listevent_loop()
+				return
+			else: #no event listing turned on
+				await ctx.send(f'Event listing has not been turned on.')
+				return
+		elif args[0] == "off":
 			if (ctx.channel == bot.list_events_channel) and bot.list_events: #turning off
 				bot.list_events = False
 				bot.list_events_channel = None
