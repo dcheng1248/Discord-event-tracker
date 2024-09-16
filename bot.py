@@ -326,6 +326,7 @@ async def listevents(ctx, *args):
 		if args[0] == "update":
 			if bot.list_events and bot.list_events_channel: #update event list channel
 				await listevent_loop()
+				await ctx.send(f'Event listing in {bot.list_events_channel.mention} updated')
 				return
 			else: #no event listing turned on
 				await ctx.send(f'Event listing has not been turned on.')
