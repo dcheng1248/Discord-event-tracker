@@ -233,7 +233,7 @@ async def announcement_loop():
 @tasks.loop(time=[datetime.time(hour=x, tzinfo=pytz.UTC) for x in [11, 23]], reconnect=True)
 async def arena_loop():
 	# Send notifications for arena shop items
-	bot.arena_shop_index += 1
+	bot.arena_shop_index += 1 if bot.arena_shop_index < 31 else -31
 	if bot.arena_shop_announcements[bot.arena_shop_order[bot.arena_shop_index]]:
 		await bot.wait_until_ready()
 		await bot.announcement_channel.send(f"{bot.arena_shop_order[bot.arena_shop_index]} available in arena shop")
@@ -290,11 +290,11 @@ async def add(ctx, *, args):
 	update()
 
 @bot.command (name = 'arena')
-async def arena(ctx, *args):
+async def arena(ctx, *, args):
 	if (len(args) == 0):
 		# print current info
 		msg = f"Currently in arena shop: {bot.arena_shop_order[bot.arena_shop_index]}\n"
-		msg = f"Next item: {bot.arena_shop_order[bot.arena_shop_index + 1]}"
+		msg += f"Next item: {bot.arena_shop_order[bot.arena_shop_index + 1 if bot.arena_shop_index < 31 else 0]}"
 		await ctx.send(msg)
 	elif args[0] == 'listindex':
 		# list possible index values
