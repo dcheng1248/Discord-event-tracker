@@ -294,6 +294,7 @@ async def add(ctx, *, args):
 
 @bot.command (name = 'arena')
 async def arena(ctx, *args):
+	update()
 	if (len(args) == 0):
 		# print current info
 		msg = f"Currently in arena shop: {bot.arena_shop_order[bot.arena_shop_index]}\n"
@@ -316,6 +317,7 @@ async def arena(ctx, *args):
 			await ctx.send('Index must be an integer between 0 and 31.')
 			return
 		bot.arena_shop_index = args[1]
+		update()
 		await ctx.send(f"Arena index set to {args[1]}: {bot.arena_shop_order[args[1]]}")
 
 #showing recorded status
