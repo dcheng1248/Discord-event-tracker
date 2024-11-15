@@ -504,7 +504,6 @@ async def on_command_error(ctx, error):
 	elif isinstance(error, commands.MissingRequiredArgument):
 		await ctx.send("An argument is missing in this command. Please use !help for command formatting.")
 	else:
-		print(error)
 		await ctx.send("An error occured with the command. Please contact the admins.")
 
 #help
