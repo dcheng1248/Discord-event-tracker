@@ -115,8 +115,8 @@ async def unpickle_data():
 		bot.list_events_channel = await bot.fetch_channel(pickle_list.get('Events Channel')) if pickle_list.get('Events Channel') else None
 		bot.announcement = pickle_list.get('Announcement')
 		bot.announcement_channel = await bot.fetch_channel(pickle_list.get('Announcement Channel')) if pickle_list.get('Announcement Channel') else None
-		bot.arena_shop_index = pickle_list.get('Arena Shop Index')
-		bot.arena_shop_announcements = pickle_list.get('Arena Shop Announcements')
+		bot.arena_shop_index = pickle_list.get('Arena Shop Index', 0)
+		bot.arena_shop_announcements = pickle_list.get('Arena Shop Announcements', bot.arena_shop_announcements)
 	else:
 		bot.rushes = pickle_list[0]
 		bot.heroics = pickle_list[1]
@@ -293,8 +293,6 @@ async def add(ctx, *, args):
 async def arena(ctx, *args):
 	if (len(args) == 0):
 		# print current info
-		print(bot.arena_shop_order)
-		print(bot.arena_shop_index)
 		msg = f"Currently in arena shop: {bot.arena_shop_order[bot.arena_shop_index]}\n"
 		msg = f"Next item: {bot.arena_shop_order[bot.arena_shop_index + 1]}"
 		await ctx.send(msg)
