@@ -299,18 +299,22 @@ async def arena(ctx, *args):
 		msg = f"Currently in arena shop: {bot.arena_shop_order[bot.arena_shop_index]}\n"
 		msg += f"Next item: {bot.arena_shop_order[bot.arena_shop_index + 1 if bot.arena_shop_index < 31 else 0]}"
 		await ctx.send(msg)
-	elif args[0] == 'listindex':
+		return
+	if args[0] == 'listindex':
 		# list possible index values
 		msg = ""
 		for i in range(0,len(bot.arena_shop_order)):
 			msg += f"{i}: {bot.arena_shop_order[i]}\n"
 		await ctx.send(msg)
-	elif args[0] == 'setindex':
+		return
+	if args[0] == 'setindex':
 		# set current shop index
 		if args[1] is None:
 			await ctx.send('You must specify an index.')
+			return
 		if any([not args[1].isnumeric(), int(args[1]) < 0, int(args[1]) > 31]):
 			await ctx.send('Index must be an integer between 0 and 31.')
+			return
 		bot.arena_shop_index = args[1]
 		await ctx.send(f"Arena index set to {args[1]}: {bot.arena_shop_order[args[1]]}")
 
