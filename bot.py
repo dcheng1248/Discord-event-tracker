@@ -318,7 +318,7 @@ async def arena(ctx, *args):
 			return
 		bot.arena_shop_index = int(args[1])
 		update()
-		await ctx.send(f"Arena index set to {args[1]}: {bot.arena_shop_order[args[1]]}")
+		await ctx.send(f"Arena index set to {bot.arena_shop_index}: {bot.arena_shop_order[bot.arena_shop_index]}")
 
 #showing recorded status
 @bot.command(name = 'status')
