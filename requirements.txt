@@ -1,3 +1,4 @@
 discord
 pyyaml
 python-dotenv
+pytz
