@@ -293,6 +293,8 @@ async def add(ctx, *, args):
 async def arena(ctx, *args):
 	if (len(args) == 0):
 		# print current info
+		print(bot.arena_shop_order)
+		print(bot.arena_shop_index)
 		msg = f"Currently in arena shop: {bot.arena_shop_order[bot.arena_shop_index]}\n"
 		msg = f"Next item: {bot.arena_shop_order[bot.arena_shop_index + 1]}"
 		await ctx.send(msg)
@@ -304,8 +306,10 @@ async def arena(ctx, *args):
 		await ctx.send(msg)
 	elif args[0] == 'setindex':
 		# set current shop index
-		if any([not type(args[1]) is int, args[1] < 0, args[1] > 31]):
-			await ctx.send('Index must be an integer between 0 and 31')
+		if args[1] is None:
+			await ctx.send('You must specify an index.')
+		if any([not args[1].isnumeric(), int(args[1]) < 0, int(args[1]) > 31]):
+			await ctx.send('Index must be an integer between 0 and 31.')
 		bot.arena_shop_index = args[1]
 
 #showing recorded status
