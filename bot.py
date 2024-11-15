@@ -5,6 +5,7 @@ import datetime
 from discord.ext import commands, tasks
 import asyncio
 import pickle
+import pytz
 from dotenv import load_dotenv
 import itertools
 
@@ -54,7 +55,9 @@ def pickle_data():
 		'Events': bot.list_events,
 		'Events Channel': bot.list_events_channel.id if bot.list_events_channel else None,
 		'Announcement': bot.announcement,
-		'Announcement Channel': bot.announcement_channel.id if bot.announcement_channel else None
+		'Announcement Channel': bot.announcement_channel.id if bot.announcement_channel else None,
+		'Arena Shop Index': bot.arena_shop_index,
+		'Arena Shop Announcements': bot.arena_shop_announcements
 	}
 	with open('data.pkl', 'wb') as f:
 		pickle.dump(pickle_list, f)
@@ -112,6 +115,8 @@ async def unpickle_data():
 		bot.list_events_channel = await bot.fetch_channel(pickle_list.get('Events Channel')) if pickle_list.get('Events Channel') else None
 		bot.announcement = pickle_list.get('Announcement')
 		bot.announcement_channel = await bot.fetch_channel(pickle_list.get('Announcement Channel')) if pickle_list.get('Announcement Channel') else None
+		bot.arena_shop_index = pickle_list.get('Arena Shop Index')
+		bot.arena_shop_announcements = pickle_list.get('Arena Shop Announcements')
 	else:
 		bot.rushes = pickle_list[0]
 		bot.heroics = pickle_list[1]
@@ -131,6 +136,28 @@ def initialize(event_only=False):
 	bot.heroics = []
 	bot.posted_rushes = []
 	bot.posted_heroics = []
+	bot.arena_shop_order = ('Rainbow Experience', 'Exalted Gear', 'Radiant Amulet', 'Basic AI Book', 'Mythic Dust', 'Brilliant Amulet', 'Radiant Amulet', 'Bronze Pet Rune', 'Legendary Dust', 'Coruscating Amulet', 'Mythic Dust', 'Mythic Codex', 'Bronze Rune', 'Legendary Gear', 'Silver Rune', 'Gold', 'Bronze Rune', 'Basic AI Book', 'Silver Pet Rune', 'Superior AI Book', 'Mythic Gear', 'Exalted Dust', 'Rainbow Experience', 'Silver Rune', 'Gold', 'Brilliant Amulet', 'Mythic Gear', 'Mythic Codex', 'Bronze Pet Rune', 'Superior AI Book', 'Premium Scroll', 'Silver Pet Rune')
+	bot.arena_shop_index = 0
+	bot.arena_shop_announcements = {
+		'Rainbow Experience': False,
+		'Exalted Gear': False,
+		'Radiant Amulet': False,
+		'Basic AI Book': False,
+		'Mythic Dust': False,
+		'Brilliant Amulet': False,
+		'Bronze Pet Rune': False,
+		'Legendary Dust': False,
+		'Coruscating Amulet': True,
+		'Mythic Codex': True,
+		'Bronze Rune': False,
+		'Legendary Gear': False,
+		'Silver Rune': True,
+		'Gold': False,
+		'Superior AI Book': False,
+		'Exalted Dust': False,
+		'Premium Scroll': False,
+		'Silver Pet Rune': True
+	}
 
 	if not event_only:
 		#tracking channels with announcements
@@ -170,6 +197,8 @@ async def on_ready():
 	#Ensure loops are running
 	if not announcement_loop.is_running():
 		announcement_loop.start()
+	if not arena_loop.is_running():
+		arena_loop.start()
 	if not listevent_loop.is_running():
 		listevent_loop.start()
 	if not reminder_loop.is_running():
@@ -200,6 +229,14 @@ async def announcement_loop():
 				await bot.wait_until_ready()
 				await bot.announcement_channel.send(f"{event.name} at <t:{round(event.time.timestamp())}:t> (approx. <t:{round(event.time.timestamp())}:R>).")
 				event.reminder = True
+
+@tasks.loop(time=[datetime.time(hour=x, tzinfo=pytz.UTC) for x in [11, 23]], reconnect=True)
+async def arena_loop():
+	# Send notifications for arena shop items
+	bot.arena_shop_index += 1
+	if bot.arena_shop_announcements[bot.arena_shop_order[bot.arena_shop_index]]:
+		await bot.wait_until_ready()
+		await bot.announcement_channel.send(f"{bot.arena_shop_order[bot.arena_shop_index]} available in arena shop")
 
 @tasks.loop(time=[datetime.time(hour=x) for x in range(0, 24)], reconnect=True)
 async def listevent_loop():
@@ -236,7 +273,7 @@ async def reminder_loop():
 async def add(ctx, *, args):
 	#parse argument
 	elements = args.split("-")
-	event_name = elements[0].replace("!","") #remove ! from event name
+	event_name = elements[0].replace(" Begins!","").replace("!","") #remove extra data from event name
 	event_time = elements[1][:-3] #remove last three digits from epoch time since discord does not read milliseconds
 	event_time = datetime.datetime.fromtimestamp(int(event_time), datetime.UTC) #convert timestamp to datetime
 	event_time = event_time.replace(minute = 0, second = 0) #round datetime down to hour
@@ -251,6 +288,25 @@ async def add(ctx, *, args):
 
 	await ctx.send(f'{event_name} starting at {event_time.strftime('%d/%m/%y %H:%M')} UTC has been added.')
 	update()
+
+@bot.command (name = 'arena')
+async def arena(ctx, *args):
+	if (len(args) == 0):
+		# print current info
+		msg = f"Currently in arena shop: {bot.arena_shop_order[bot.arena_shop_index]}\n"
+		msg = f"Next item: {bot.arena_shop_order[bot.arena_shop_index + 1]}"
+		await ctx.send(msg)
+	elif args[0] == 'listindex':
+		# list possible index values
+		msg = ""
+		for i in range(0,len(bot.arena_shop_order)):
+			msg += f"{i}: {bot.arena_shop_order[i]}"
+		await ctx.send(msg)
+	elif args[0] == 'setindex':
+		# set current shop index
+		if any([not type(args[1]) is int, args[1] < 0, args[1] > 31]):
+			await ctx.send('Index must be an integer between 0 and 31')
+		bot.arena_shop_index = args[1]
 
 #showing recorded status
 @bot.command(name = 'status')
