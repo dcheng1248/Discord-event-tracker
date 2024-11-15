@@ -300,7 +300,7 @@ async def arena(ctx, *args):
 		# list possible index values
 		msg = ""
 		for i in range(0,len(bot.arena_shop_order)):
-			msg += f"{i}: {bot.arena_shop_order[i]}"
+			msg += f"{i}: {bot.arena_shop_order[i]}\n"
 		await ctx.send(msg)
 	elif args[0] == 'setindex':
 		# set current shop index
@@ -320,6 +320,7 @@ async def status(ctx):
 	msg += "**Heroics**\n"
 	for event in bot.heroics:
 		msg += f'{event.name} at {event.time.strftime('%d/%m/%y %A %H:%M')}\n\n'
+	msg += f'Arena shop index is set to {bot.arena_shop_index}\n'
 	msg += f'Event listing channel is set to {bot.list_events_channel.mention if bot.list_events_channel else None}\n'
 	msg += f'Announcement channel set to {bot.announcement_channel.mention if bot.announcement_channel else None}'
 	await ctx.send(msg)
@@ -498,6 +499,7 @@ async def on_command_error(ctx, error):
 async def help(ctx):
 	msg = f'Here are the possible commands and their respective formatting for this bot.\n'
 	msg += f'**__!add__**:\nadd new event cycle. Time in UTC.\nFormat !add [event name] [dd/mm/yy HH:MM].\n'
+	msg += f'**__!arena__**:\nshow arena shop info or set current index\nFormat !arena listindex.\nFormat !arena setindex [integer].\n'
 	msg += f'**__!status__**:\nshow status of recorded events, including last occurence of each event. Time in UTC.\nFormat !status.\n'
 	msg += f'**__!next__**:\nshow when is the next rush. Local time displayed.\nFormat !next. \n'
 	msg += f'**__!announcement__**:\nset up rush announcement in channel.\nFormat !announcement [number of hours in advance for announcement].\nFormat !announcement off to turn announcements off.\n'
