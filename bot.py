@@ -312,6 +312,7 @@ async def arena(ctx, *args):
 		if any([not args[1].isnumeric(), int(args[1]) < 0, int(args[1]) > 31]):
 			await ctx.send('Index must be an integer between 0 and 31.')
 		bot.arena_shop_index = args[1]
+		await ctx.send(f"Arena index set to {args[1]}: {bot.arena_shop_order[args[1]]}")
 
 #showing recorded status
 @bot.command(name = 'status')
