@@ -187,6 +187,7 @@ async def on_ready():
 	if os.path.isfile('data.pkl'):
 		await unpickle_data()
 		msg = 'Event tracker is online.\n\n'
+		msg += f'Arena shop index is {bot.arena_shop_index}: {bot.arena_shop_order[bot.arena_shop_index]}\n'
 		msg += f'Event listing channel is set to {bot.list_events_channel.mention if bot.list_events_channel else None}\n'
 		msg += f'Announcement channel set to {bot.announcement_channel.mention if bot.announcement_channel else None}\n\n'
 		msg += 'Please use !status to check the data or !reset if you wish to reset the bot.'
@@ -322,7 +323,7 @@ async def status(ctx):
 	msg += "**Heroics**\n"
 	for event in bot.heroics:
 		msg += f'{event.name} at {event.time.strftime('%d/%m/%y %A %H:%M')}\n\n'
-	msg += f'Arena shop index is set to {bot.arena_shop_index}\n'
+	msg += f'Arena shop index is {bot.arena_shop_index}: {bot.arena_shop_order[bot.arena_shop_index]}\n'
 	msg += f'Event listing channel is set to {bot.list_events_channel.mention if bot.list_events_channel else None}\n'
 	msg += f'Announcement channel set to {bot.announcement_channel.mention if bot.announcement_channel else None}'
 	await ctx.send(msg)
