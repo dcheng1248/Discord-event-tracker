@@ -188,6 +188,9 @@ async def on_ready():
 		channel = ready_channel if ready_channel else guild.system_channel
 	if os.path.isfile('data.pkl'):
 		await unpickle_data()
+		print(f"Arena shop order: {bot.arena_shop_order}")
+		print(f"Arena shop index: {bot.arena_shop_index}")
+		print(f"Arena shop announcements: {bot.arena_shop_announcements}")
 		msg = 'Event tracker is online.\n\n'
 		msg += f'Arena shop index is {bot.arena_shop_index}: {bot.arena_shop_order[bot.arena_shop_index]}\n'
 		msg += f'Event listing channel is set to {bot.list_events_channel.mention if bot.list_events_channel else None}\n'
@@ -319,6 +322,9 @@ async def arena(ctx, *args):
 		bot.arena_shop_index = int(args[1])
 		update()
 		await ctx.send(f"Arena index set to {bot.arena_shop_index}: {bot.arena_shop_order[bot.arena_shop_index]}")
+	if args[0] == 'cycle':
+		#manually cycle to next item and notify if needed
+		await arena_loop()
 
 #showing recorded status
 @bot.command(name = 'status')
@@ -504,6 +510,7 @@ async def on_command_error(ctx, error):
 	elif isinstance(error, commands.MissingRequiredArgument):
 		await ctx.send("An argument is missing in this command. Please use !help for command formatting.")
 	else:
+		print(error)
 		await ctx.send("An error occured with the command. Please contact the admins.")
 
 #help
