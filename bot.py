@@ -118,7 +118,7 @@ async def unpickle_data():
 		bot.announcement_channel = await bot.fetch_channel(pickle_list.get('Announcement Channel')) if pickle_list.get('Announcement Channel') else None
 		bot.arena_shop_order = pickle_list.get('Arena Shop Order', bot.arena_shop_order)
 		bot.arena_shop_index = pickle_list.get('Arena Shop Index', 0)
-		bot.arena_shop_announcements = pickle_list.get('Arena Shop Announcements') if pickle_list.get('Arena Shop Announcements') else bot.arena_shop_announcements
+		bot.arena_shop_announcements = pickle_list.get('Arena Shop Announcements', bot.arena_shop_announcements)
 	else:
 		bot.rushes = pickle_list[0]
 		bot.heroics = pickle_list[1]
@@ -188,9 +188,6 @@ async def on_ready():
 		channel = ready_channel if ready_channel else guild.system_channel
 	if os.path.isfile('data.pkl'):
 		await unpickle_data()
-		print(f"Arena shop order: {bot.arena_shop_order}")
-		print(f"Arena shop index: {bot.arena_shop_index}")
-		print(f"Arena shop announcements: {bot.arena_shop_announcements}")
 		msg = 'Event tracker is online.\n\n'
 		msg += f'Arena shop index is {bot.arena_shop_index}: {bot.arena_shop_order[bot.arena_shop_index]}\n'
 		msg += f'Event listing channel is set to {bot.list_events_channel.mention if bot.list_events_channel else None}\n'
@@ -322,6 +319,14 @@ async def arena(ctx, *args):
 		bot.arena_shop_index = int(args[1])
 		update()
 		await ctx.send(f"Arena index set to {bot.arena_shop_index}: {bot.arena_shop_order[bot.arena_shop_index]}")
+	if args[0] == 'announce':
+		#check arguments
+		if len(args) < 3:
+			await ctx.send('Usage: !add "Item Name" Boolean')
+			return
+		#manually add item to database
+		bot.arena_shop_announcements[args[1]] = True if args[2] in ['true', 'True', 'on', 'On'] else False
+		await ctx.send(f"{args[1]} set to {'' if bot.arena_shop_announcements[args[1]] else 'not '} announce")
 	if args[0] == 'cycle':
 		#manually cycle to next item and notify if needed
 		await arena_loop()
@@ -510,7 +515,6 @@ async def on_command_error(ctx, error):
 	elif isinstance(error, commands.MissingRequiredArgument):
 		await ctx.send("An argument is missing in this command. Please use !help for command formatting.")
 	else:
-		print(error)
 		await ctx.send("An error occured with the command. Please contact the admins.")
 
 #help
@@ -518,7 +522,7 @@ async def on_command_error(ctx, error):
 async def help(ctx):
 	msg = f'Here are the possible commands and their respective formatting for this bot.\n'
 	msg += f'**__!add__**:\nadd new event cycle. Time in UTC.\nFormat !add [event name] [dd/mm/yy HH:MM].\n'
-	msg += f'**__!arena__**:\nshow arena shop info or set current index\nFormat !arena listindex.\nFormat !arena setindex [integer].\n'
+	msg += f'**__!arena__**:\nshow arena shop info or set current index\nFormat !arena listindex.\nFormat !arena setindex [integer].\nFormat !arena announce "[Item Name]" [boolean]\n'
 	msg += f'**__!status__**:\nshow status of recorded events, including last occurence of each event. Time in UTC.\nFormat !status.\n'
 	msg += f'**__!next__**:\nshow when is the next rush. Local time displayed.\nFormat !next. \n'
 	msg += f'**__!announcement__**:\nset up rush announcement in channel.\nFormat !announcement [number of hours in advance for announcement].\nFormat !announcement off to turn announcements off.\n'
