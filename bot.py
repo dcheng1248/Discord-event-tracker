@@ -118,7 +118,7 @@ async def unpickle_data():
 		bot.announcement_channel = await bot.fetch_channel(pickle_list.get('Announcement Channel')) if pickle_list.get('Announcement Channel') else None
 		bot.arena_shop_order = pickle_list.get('Arena Shop Order', bot.arena_shop_order)
 		bot.arena_shop_index = pickle_list.get('Arena Shop Index', 0)
-		bot.arena_shop_announcements = pickle_list.get('Arena Shop Announcements', bot.arena_shop_announcements)
+		bot.arena_shop_announcements = pickle_list.get('Arena Shop Announcements') if pickle_list.get('Arena Shop Announcements') else bot.arena_shop_announcements
 	else:
 		bot.rushes = pickle_list[0]
 		bot.heroics = pickle_list[1]
@@ -510,7 +510,6 @@ async def on_command_error(ctx, error):
 	elif isinstance(error, commands.MissingRequiredArgument):
 		await ctx.send("An argument is missing in this command. Please use !help for command formatting.")
 	else:
-		print(error)
 		await ctx.send("An error occured with the command. Please contact the admins.")
 
 #help
