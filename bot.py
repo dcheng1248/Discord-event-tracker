@@ -138,28 +138,6 @@ def initialize(event_only=False):
 	bot.heroics = []
 	bot.posted_rushes = []
 	bot.posted_heroics = []
-	bot.arena_shop_order = ('Rainbow Experience', 'Exalted Gear', 'Radiant Amulet', 'Basic AI Book', 'Mythic Dust', 'Brilliant Amulet', 'Radiant Amulet', 'Bronze Pet Rune', 'Legendary Dust', 'Coruscating Amulet', 'Mythic Dust', 'Mythic Codex', 'Bronze Rune', 'Legendary Gear', 'Silver Rune', 'Gold', 'Bronze Rune', 'Basic AI Book', 'Silver Pet Rune', 'Superior AI Book', 'Mythic Gear', 'Exalted Dust', 'Rainbow Experience', 'Silver Rune', 'Gold', 'Brilliant Amulet', 'Mythic Gear', 'Mythic Codex', 'Bronze Pet Rune', 'Superior AI Book', 'Premium Scroll', 'Silver Pet Rune')
-	bot.arena_shop_index = 0
-	bot.arena_shop_announcements = {
-		'Rainbow Experience': False,
-		'Exalted Gear': False,
-		'Radiant Amulet': False,
-		'Basic AI Book': False,
-		'Mythic Dust': False,
-		'Brilliant Amulet': False,
-		'Bronze Pet Rune': False,
-		'Legendary Dust': False,
-		'Coruscating Amulet': True,
-		'Mythic Codex': True,
-		'Bronze Rune': False,
-		'Legendary Gear': False,
-		'Silver Rune': True,
-		'Gold': False,
-		'Superior AI Book': False,
-		'Exalted Dust': False,
-		'Premium Scroll': False,
-		'Silver Pet Rune': True
-	}
 
 	if not event_only:
 		#tracking channels with announcements
@@ -176,6 +154,30 @@ def initialize(event_only=False):
 		bot.reminders = []
 		bot.reminder_time = None
 
+		#arena shop
+		bot.arena_shop_order = ('Rainbow Experience', 'Exalted Gear', 'Radiant Amulet', 'Basic AI Book', 'Mythic Dust', 'Brilliant Amulet', 'Radiant Amulet', 'Bronze Pet Rune', 'Legendary Dust', 'Coruscating Amulet', 'Mythic Dust', 'Mythic Codex', 'Bronze Rune', 'Legendary Gear', 'Silver Rune', 'Gold', 'Bronze Rune', 'Basic AI Book', 'Silver Pet Rune', 'Superior AI Book', 'Mythic Gear', 'Exalted Dust', 'Rainbow Experience', 'Silver Rune', 'Gold', 'Brilliant Amulet', 'Mythic Gear', 'Mythic Codex', 'Bronze Pet Rune', 'Superior AI Book', 'Premium Scroll', 'Silver Pet Rune')
+		bot.arena_shop_index = 0
+		bot.arena_shop_announcements = {
+			'Rainbow Experience': False,
+			'Exalted Gear': False,
+			'Radiant Amulet': False,
+			'Basic AI Book': False,
+			'Mythic Dust': False,
+			'Brilliant Amulet': False,
+			'Bronze Pet Rune': False,
+			'Legendary Dust': False,
+			'Coruscating Amulet': True,
+			'Mythic Codex': True,
+			'Bronze Rune': False,
+			'Legendary Gear': False,
+			'Silver Rune': True,
+			'Gold': False,
+			'Superior AI Book': False,
+			'Exalted Dust': False,
+			'Premium Scroll': False,
+			'Silver Pet Rune': True,
+			'Mythic Gear': False
+		}
 @bot.event
 async def on_ready():
 	print(f'{bot.user} has connected to Discord!')
@@ -297,15 +299,15 @@ async def arena(ctx, *args):
 	update()
 	if (len(args) == 0):
 		# print current info
-		msg = f"Currently in arena shop: {bot.arena_shop_order[bot.arena_shop_index]}\n"
-		msg += f"Next item: {bot.arena_shop_order[bot.arena_shop_index + 1 if bot.arena_shop_index < 31 else 0]}"
+		msg = f"Currently in arena shop - {bot.arena_shop_index}:{bot.arena_shop_order[bot.arena_shop_index]}\n"
+		msg += f"Next item - {bot.arena_shop_index + 1 if bot.arena_shop_index < 31 else 0}:{bot.arena_shop_order[bot.arena_shop_index + 1 if bot.arena_shop_index < 31 else 0]}"
 		await ctx.send(msg)
 		return
 	if args[0] == 'listindex':
 		# list possible index values
 		msg = ""
 		for i in range(0,len(bot.arena_shop_order)):
-			msg += f"{i}: {bot.arena_shop_order[i]}\n"
+			msg += f"{i}: {bot.arena_shop_order[i]} ({'True' if bot.arena_shop_announcements[args[1]] else 'False'})\n"
 		await ctx.send(msg)
 		return
 	if args[0] == 'setindex':
@@ -326,7 +328,7 @@ async def arena(ctx, *args):
 			return
 		#manually add item to database
 		bot.arena_shop_announcements[args[1]] = True if args[2] in ['true', 'True', 'on', 'On'] else False
-		await ctx.send(f"{args[1]} set to {'' if bot.arena_shop_announcements[args[1]] else 'not '} announce")
+		await ctx.send(f"{args[1]} set to {'' if bot.arena_shop_announcements[args[1]] else 'not '}announce")
 	if args[0] == 'cycle':
 		#manually cycle to next item and notify if needed
 		await arena_loop()
