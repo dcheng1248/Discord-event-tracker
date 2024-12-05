@@ -299,8 +299,8 @@ async def arena(ctx, *args):
 	update()
 	if (len(args) == 0):
 		# print current info
-		msg = f"Currently in arena shop - {bot.arena_shop_index}:{bot.arena_shop_order[bot.arena_shop_index]}\n"
-		msg += f"Next item - {bot.arena_shop_index + 1 if bot.arena_shop_index < 31 else 0}:{bot.arena_shop_order[bot.arena_shop_index + 1 if bot.arena_shop_index < 31 else 0]}"
+		msg = f"Currently in arena shop: {bot.arena_shop_order[bot.arena_shop_index]} (Index {bot.arena_shop_index})\n"
+		msg += f"Next item: {bot.arena_shop_order[bot.arena_shop_index + 1 if bot.arena_shop_index < 31 else 0]} (Index {bot.arena_shop_index + 1 if bot.arena_shop_index < 31 else 0})"
 		await ctx.send(msg)
 		return
 	if args[0] == 'listindex':
