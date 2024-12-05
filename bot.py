@@ -307,7 +307,7 @@ async def arena(ctx, *args):
 		# list possible index values
 		msg = ""
 		for i in range(0,len(bot.arena_shop_order)):
-			msg += f"{i}: {bot.arena_shop_order[i]} ({'True' if bot.arena_shop_announcements[args[1]] else 'False'})\n"
+			msg += f"{i}: {bot.arena_shop_order[i]} ({'True' if bot.arena_shop_announcements[bot.arena_shop_order[i]] else 'False'})\n"
 		await ctx.send(msg)
 		return
 	if args[0] == 'setindex':
