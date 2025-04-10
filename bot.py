@@ -284,7 +284,11 @@ async def add(ctx, *, args):
 	event_time = event_time.replace(minute = 0, second = 0) #round datetime down to hour
 
 	#add event if it is not already added
-	if ("Rush" in event_name or "Scramble" in event_name): #this is a rush
+	if any([
+		"Rush" in event_name,
+		"Scramble" in event_name,
+		"Rumble" in event_name
+	]): #this is a rush
 		if (not event_exists(bot.rushes, event_name, event_time)): #check it is not added
 			bot.rushes.append(event(event_name, event_time)) 
 	else: #this is a heroic
